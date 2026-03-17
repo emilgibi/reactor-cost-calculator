@@ -1,0 +1,42 @@
+/* Print Styles */
+@media print {
+  .noprint {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+  }
+
+  .MuiDrawer-permanent {
+    display: none !important;
+  }
+
+  .MuiContainer-root {
+    max-width: 100% !important;
+  }
+
+  .MuiPaper-root {
+    box-shadow: none !important;
+    border: 1px solid #ddd;
+    page-break-inside: avoid;
+  }
+
+  .MuiCard-root {
+    page-break-inside: avoid;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+  }
+
+  .recharts-wrapper {
+    page-break-inside: avoid;
+  }
+}
