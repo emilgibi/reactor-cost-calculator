@@ -1,0 +1,97 @@
+export interface ReactorSpecification {
+  Shell: {
+    moc: string;
+    diameter: number;
+    height: number;
+    thickness: number;
+    limpet: boolean;
+  };
+  Dish: {
+    moc: string;
+    diameter: number;
+    thickness: number;
+  };
+  MechanicalSeal: {
+    type: 'Single' | 'Double' | 'Gland';
+  };
+  Motor: {
+    type: 'Flameproof' | 'Non-Flameproof';
+  };
+  Shaft: {
+    moc: string;
+    diameter: number;
+  };
+  Blade: {
+    type: 'Gate anchor' | 'Turbine';
+  };
+  Limpet: {
+    od_diameter: number;
+    pitch_diameter: number;
+  };
+  Finish: {
+    type: 'Mirror' | 'Normal';
+  };
+}
+
+export interface NozzleSchedule {
+  Thermowell_25_NB: { moc: string; count: number };
+  NB_25: { moc: string; count: number };
+  NB_40: { moc: string; count: number };
+  NB_50: { moc: string; count: number };
+  NB_80: { moc: string; count: number };
+  NB_100: { moc: string; count: number };
+  NB_150: { moc: string; count: number };
+  NB_600: { moc: string; count: number };
+  LightGlass_150_NB: { count: number };
+  SightGlass_150_NB: { count: number };
+}
+
+export interface ReactorFormInput {
+  Specification: ReactorSpecification;
+  NozzleSchedule: NozzleSchedule;
+}
+
+export interface ReactorAssumptions {
+  ss304PlateCost: number;
+  ss304PipeCost: number;
+  msPlateCost: number;
+  msPipeCost: number;
+  ssLabourCost: number;
+  msLabourCost: number;
+  ss304Density: number;
+  msDensity: number;
+  gearBoxCost: number;
+  motorCost: number;
+  bearingCost: number;
+  singleSealCost: number;
+  doubleSealCost: number;
+  flexibleCouplingCost: number;
+  toughenedGlassCost: number;
+  hardwareCost: number;
+  consumableCost: number;
+  dishPressingCost: number;
+  machineCharges: number;
+  agitatorAssemblyCost: number;
+  acidCleaningCost: number;
+  mirrorFinishCost: number;
+  paintingCost: number;
+  localTransportCost: number;
+  overheadPercent: number;
+  profitPercent: number;
+  annualInflationRate: number;
+}
+
+export interface ReactorCalculationResult {
+  materialWeight: {
+    ss304: number;
+    ssPipe: number;
+    ms: number;
+    msPipe: number;
+  };
+  costBreakdown: { [key: string]: number };
+  totalMaterialCost: number;
+  totalLabourCost: number;
+  overheadCost: number;
+  profitCost: number;
+  grandTotal: number;
+}

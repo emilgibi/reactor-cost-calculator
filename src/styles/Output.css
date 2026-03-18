@@ -1,0 +1,109 @@
+.output-root {
+  padding: 24px;
+}
+
+.output-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.analysis-tabs .MuiTab-root {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.cost-summary-cards {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.cost-summary-card {
+  flex: 1;
+  min-width: 180px;
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.cost-summary-card h3 {
+  font-size: 0.8rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 8px;
+}
+
+.cost-summary-card .amount {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a237e;
+}
+
+.breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.breakdown-table th {
+  background: #f5f7ff;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.breakdown-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #444;
+}
+
+.breakdown-table tr:last-child td {
+  border-bottom: none;
+  font-weight: 700;
+  background: #f5f7ff;
+}
+
+.breakdown-table tr:hover td {
+  background: #fafafa;
+}
+
+.chart-container {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 24px;
+}
+
+.chart-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 16px;
+}
+
+.pdf-export-btn {
+  background: #1976d2 !important;
+  color: white !important;
+}
+
+@media print {
+  .output-header .pdf-export-btn,
+  .MuiTabs-root {
+    display: none !important;
+  }
+
+  .chart-container,
+  .breakdown-table {
+    page-break-inside: avoid;
+  }
+}
