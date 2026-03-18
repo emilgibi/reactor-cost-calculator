@@ -1,95 +1,74 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import {
+  ReactorFormInput,
+  ReactorAssumptions,
+  ReactorCalculationResult,
+} from '../types/reactor';
 
-export interface ReactorInputs {
-  capacity: number;
-  shellDiameter: number;
-  dishType: 'SS304' | 'MS';
-  thickness: number;
-  motorType: 'Flameproof' | 'Non-Flameproof';
-  motorCapacity: number;
-  sealType: 'Single' | 'Double' | 'Gland';
-  bladeType: 'Gate anchor' | 'Turbine';
-  limpetIncluded: boolean;
-  limpetOD: number;
-  limpetPitch: number;
-  finishType: 'Mirror' | 'Normal';
-}
-
-export interface Assumptions {
-  ss304PlateCost: number;
-  ss304PipeCost: number;
-  msPlateCost: number;
-  msPipeCost: number;
-  ssLabourCost: number;
-  msLabourCost: number;
-  ss304Density: number;
-  msDensity: number;
-  gearBoxCost: number;
-  motorCost: number;
-  bearingCost: number;
-  singleSealCost: number;
-  doubleSealCost: number;
-  flexibleCouplingCost: number;
-  toughenedGlassCost: number;
-  hardwareCost: number;
-  consumableCost: number;
-  dishPressingCost: number;
-  machineCharges: number;
-  agitatorAssemblyCost: number;
-  acidCleaningCost: number;
-  mirrorFinishCost: number;
-  paintingCost: number;
-  localTransportCost: number;
-  overheadPercent: number;
-  profitPercent: number;
-  annualInflationRate: number;
-}
-
-export interface CalculationResult {
-  materialWeight: {
-    ss304: number;
-    ssPipe: number;
-    ms: number;
-    msPipe: number;
-  };
-  costBreakdown: {
-    [key: string]: number;
-  };
-  totalMaterialCost: number;
-  totalLabourCost: number;
-  overheadCost: number;
-  profitCost: number;
-  grandTotal: number;
-}
+export type { ReactorFormInput, ReactorAssumptions, ReactorCalculationResult };
 
 interface ReactorContextType {
-  inputs: ReactorInputs;
-  assumptions: Assumptions;
-  calculationResult: CalculationResult | null;
-  updateInputs: (newInputs: Partial<ReactorInputs>) => void;
-  updateAssumptions: (newAssumptions: Partial<Assumptions>) => void;
+  inputs: ReactorFormInput;
+  assumptions: ReactorAssumptions;
+  calculationResult: ReactorCalculationResult | null;
+  updateInputs: (newInputs: Partial<ReactorFormInput>) => void;
+  updateAssumptions: (newAssumptions: Partial<ReactorAssumptions>) => void;
   calculateCosts: () => void;
   saveConfiguration: (name: string) => void;
   loadConfiguration: (name: string) => void;
   getSavedConfigurations: () => string[];
 }
 
-const defaultInputs: ReactorInputs = {
-  capacity: 10,
-  shellDiameter: 2150,
-  dishType: 'SS304',
-  thickness: 8,
-  motorType: 'Flameproof',
-  motorCapacity: 15,
-  sealType: 'Single',
-  bladeType: 'Gate anchor',
-  limpetIncluded: true,
-  limpetOD: 90,
-  limpetPitch: 120,
-  finishType: 'Mirror',
+export const defaultInputs: ReactorFormInput = {
+  Specification: {
+    Shell: {
+      moc: 'SS304',
+      diameter: 2150,
+      height: 2000,
+      thickness: 8,
+      limpet: true,
+    },
+    Dish: {
+      moc: 'SS304',
+      diameter: 2150,
+      thickness: 8,
+    },
+    MechanicalSeal: {
+      type: 'Single',
+    },
+    Motor: {
+      type: 'Flameproof',
+    },
+    Shaft: {
+      moc: 'SS304',
+      diameter: 75,
+    },
+    Blade: {
+      type: 'Gate anchor',
+    },
+    Limpet: {
+      od_diameter: 90,
+      pitch_diameter: 120,
+    },
+    Finish: {
+      type: 'Mirror',
+    },
+  },
+  NozzleSchedule: {
+    Thermowell_25_NB: { moc: 'SS304', count: 1 },
+    NB_25: { moc: 'SS304', count: 2 },
+    NB_40: { moc: 'SS304', count: 1 },
+    NB_50: { moc: 'SS304', count: 2 },
+    NB_80: { moc: 'SS304', count: 1 },
+    NB_100: { moc: 'SS304', count: 1 },
+    NB_150: { moc: 'SS304', count: 1 },
+    NB_600: { moc: 'SS/MS', count: 1 },
+    LightGlass_150_NB: { count: 1 },
+    SightGlass_150_NB: { count: 1 },
+  },
 };
 
-const defaultAssumptions: Assumptions = {
+export const defaultAssumptions: ReactorAssumptions = {
   ss304PlateCost: 210,
   ss304PipeCost: 350,
   msPlateCost: 65,
@@ -122,20 +101,35 @@ const defaultAssumptions: Assumptions = {
 const ReactorContext = createContext<ReactorContextType | undefined>(undefined);
 
 export function ReactorProvider({ children }: { children: React.ReactNode }) {
-  const [inputs, setInputs] = useState<ReactorInputs>(defaultInputs);
-  const [assumptions, setAssumptions] = useState<Assumptions>(defaultAssumptions);
-  const [calculationResult, setCalculationResult] = useState<CalculationResult | null>(null);
+  const [inputs, setInputs] = useState<ReactorFormInput>(() => {
+    try {
+      const saved = localStorage.getItem('reactor_current_inputs');
+      return saved ? JSON.parse(saved) : defaultInputs;
+    } catch {
+      return defaultInputs;
+    }
+  });
+  const [assumptions, setAssumptions] = useState<ReactorAssumptions>(defaultAssumptions);
+  const [calculationResult, setCalculationResult] = useState<ReactorCalculationResult | null>(null);
 
-  const updateInputs = useCallback((newInputs: Partial<ReactorInputs>) => {
-    setInputs((prev) => ({ ...prev, ...newInputs }));
+  const updateInputs = useCallback((newInputs: Partial<ReactorFormInput>) => {
+    setInputs((prev) => {
+      const updated = { ...prev, ...newInputs };
+      localStorage.setItem('reactor_current_inputs', JSON.stringify(updated));
+      return updated;
+    });
   }, []);
 
-  const updateAssumptions = useCallback((newAssumptions: Partial<Assumptions>) => {
+  const updateAssumptions = useCallback((newAssumptions: Partial<ReactorAssumptions>) => {
     setAssumptions((prev) => ({ ...prev, ...newAssumptions }));
   }, []);
 
   const calculateCosts = useCallback(() => {
-    const scalingFactor = inputs.capacity === 10 ? 1 : 0.3 + (inputs.capacity - 1) * 0.078;
+    const spec = inputs.Specification;
+    const shellDiameter = spec.Shell.diameter;
+    // Scale based on shell diameter relative to the base 10KL reactor (2150mm diameter).
+    // Square scaling is used since volume (and thus material weight) scales with the square of diameter.
+    const scalingFactor = Math.pow(shellDiameter / 2150, 2);
 
     const materialWeight = {
       ss304: 3268.39 * scalingFactor,
@@ -161,32 +155,28 @@ export function ReactorProvider({ children }: { children: React.ReactNode }) {
     const msLabourCost = (materialWeight.ms + materialWeight.msPipe) * assumptions.msLabourCost;
     costBreakdown['SS Labour'] = ssLabourCost;
     costBreakdown['MS Labour'] = msLabourCost;
-
     totalMaterialCost += ssLabourCost + msLabourCost;
 
-    if (inputs.motorType === 'Flameproof') {
+    if (spec.Motor.type === 'Flameproof') {
       costBreakdown['Gear Box'] = assumptions.gearBoxCost;
       costBreakdown['Motor (Flameproof)'] = assumptions.motorCost;
+      totalMaterialCost += assumptions.gearBoxCost + assumptions.motorCost;
     }
 
     costBreakdown['Bearing'] = assumptions.bearingCost;
+    totalMaterialCost += assumptions.bearingCost;
 
-    if (inputs.sealType === 'Single') {
+    if (spec.MechanicalSeal.type === 'Single') {
       costBreakdown['Single Mechanical Seal'] = assumptions.singleSealCost;
-    } else if (inputs.sealType === 'Double') {
+      totalMaterialCost += assumptions.singleSealCost;
+    } else if (spec.MechanicalSeal.type === 'Double') {
       costBreakdown['Double Mechanical Seal'] = assumptions.doubleSealCost;
+      totalMaterialCost += assumptions.doubleSealCost;
     }
 
     costBreakdown['Flexible Coupling'] = assumptions.flexibleCouplingCost;
     costBreakdown['Toughened Glass'] = assumptions.toughenedGlassCost;
-
-    totalMaterialCost +=
-      assumptions.gearBoxCost +
-      assumptions.motorCost +
-      assumptions.bearingCost +
-      (inputs.sealType === 'Double' ? assumptions.doubleSealCost : assumptions.singleSealCost) +
-      assumptions.flexibleCouplingCost +
-      assumptions.toughenedGlassCost;
+    totalMaterialCost += assumptions.flexibleCouplingCost + assumptions.toughenedGlassCost;
 
     costBreakdown['Hardware'] = assumptions.hardwareCost;
     costBreakdown['Consumables'] = assumptions.consumableCost;
@@ -194,24 +184,25 @@ export function ReactorProvider({ children }: { children: React.ReactNode }) {
     costBreakdown['Machine Charges'] = assumptions.machineCharges;
     costBreakdown['Agitator Assembly'] = assumptions.agitatorAssemblyCost;
     costBreakdown['Acid Cleaning'] = assumptions.acidCleaningCost * 278.73 * scalingFactor;
-    costBreakdown['Mirror Finish'] = inputs.finishType === 'Mirror' ? assumptions.mirrorFinishCost * 26.18 * scalingFactor : 0;
+    costBreakdown['Mirror Finish'] =
+      spec.Finish.type === 'Mirror' ? assumptions.mirrorFinishCost * 26.18 * scalingFactor : 0;
     costBreakdown['Painting'] = assumptions.paintingCost;
     costBreakdown['Local Transport'] = assumptions.localTransportCost;
 
     const otherCosts =
       assumptions.hardwareCost +
       assumptions.consumableCost +
-      (assumptions.dishPressingCost * 972.2 * scalingFactor) +
+      assumptions.dishPressingCost * 972.2 * scalingFactor +
       assumptions.machineCharges +
       assumptions.agitatorAssemblyCost +
-      (assumptions.acidCleaningCost * 278.73 * scalingFactor) +
-      (inputs.finishType === 'Mirror' ? assumptions.mirrorFinishCost * 26.18 * scalingFactor : 0) +
+      assumptions.acidCleaningCost * 278.73 * scalingFactor +
+      (spec.Finish.type === 'Mirror' ? assumptions.mirrorFinishCost * 26.18 * scalingFactor : 0) +
       assumptions.paintingCost +
       assumptions.localTransportCost;
 
     const fabricationCost = totalMaterialCost + otherCosts;
 
-    if (inputs.limpetIncluded) {
+    if (spec.Shell.limpet) {
       const limpetCost = 198503 * scalingFactor;
       costBreakdown['Limpet'] = limpetCost;
       totalMaterialCost += limpetCost;

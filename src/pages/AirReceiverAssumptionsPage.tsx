@@ -10,15 +10,15 @@ import {
   AccordionDetails,
   Divider,
 } from '@mui/material';
-import { useReactor } from '../context/ReactorContext';
 import { ExpandMore as ExpandMoreIcon, Save as SaveIcon, Refresh as ResetIcon } from '@mui/icons-material';
-import { ReactorAssumptions } from '../types/reactor';
+import { useAirReceiver } from '../context/AirReceiverContext';
+import { AirReceiverAssumptions } from '../types/airReceiver';
 
-export default function AssumptionsPage() {
-  const { assumptions, updateAssumptions, calculateCosts } = useReactor();
-  const [localAssumptions, setLocalAssumptions] = useState<ReactorAssumptions>({ ...assumptions });
+export default function AirReceiverAssumptionsPage() {
+  const { assumptions, updateAssumptions, calculateCosts } = useAirReceiver();
+  const [localAssumptions, setLocalAssumptions] = useState<AirReceiverAssumptions>({ ...assumptions });
 
-  const handleChange = (key: keyof ReactorAssumptions, value: string) => {
+  const handleChange = (key: keyof AirReceiverAssumptions, value: string) => {
     setLocalAssumptions((prev) => ({ ...prev, [key]: parseFloat(value) || 0 }));
   };
 
@@ -31,7 +31,7 @@ export default function AssumptionsPage() {
     setLocalAssumptions({ ...assumptions });
   };
 
-  const field = (key: keyof ReactorAssumptions, label: string, prefix = '₹', suffix = '') => (
+  const field = (key: keyof AirReceiverAssumptions, label: string, prefix = '₹', suffix = '') => (
     <Grid item xs={12} sm={6} md={4} key={key}>
       <TextField
         fullWidth
@@ -53,17 +53,18 @@ export default function AssumptionsPage() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            Reactor Assumptions & Values
+            Air Receiver Assumptions
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Configure cost rates and parameters for reactor calculations
+            Configure cost rates and parameters for air receiver calculations
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button startIcon={<ResetIcon />} variant="outlined" onClick={handleReset}>
             Reset
           </Button>
-          <Button startIcon={<SaveIcon />} variant="contained" onClick={handleApply}>
+          <Button startIcon={<SaveIcon />} variant="contained" onClick={handleApply}
+            sx={{ background: 'linear-gradient(135deg, #388e3c, #1b5e20)' }}>
             Apply & Recalculate
           </Button>
         </Box>
@@ -76,8 +77,8 @@ export default function AssumptionsPage() {
         <AccordionDetails>
           <Grid container spacing={2}>
             {field('ss304PlateCost', 'SS304 Plate Cost')}
-            {field('ss304PipeCost', 'SS304 Pipe Cost')}
             {field('msPlateCost', 'MS Plate Cost')}
+            {field('ss304PipeCost', 'SS304 Pipe Cost')}
             {field('msPipeCost', 'MS Pipe Cost')}
           </Grid>
         </AccordionDetails>
@@ -109,34 +110,13 @@ export default function AssumptionsPage() {
 
       <Accordion>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Brought-Out Components</Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <Grid container spacing={2}>
-            {field('gearBoxCost', 'Gear Box')}
-            {field('motorCost', 'Motor')}
-            {field('bearingCost', 'Bearing')}
-            {field('singleSealCost', 'Single Mechanical Seal')}
-            {field('doubleSealCost', 'Double Mechanical Seal')}
-            {field('flexibleCouplingCost', 'Flexible Coupling')}
-            {field('toughenedGlassCost', 'Toughened Glass (per piece)')}
-            {field('hardwareCost', 'Hardware')}
-            {field('consumableCost', 'Consumables')}
-          </Grid>
-        </AccordionDetails>
-      </Accordion>
-
-      <Accordion>
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Service Costs</Typography>
         </AccordionSummary>
         <AccordionDetails>
           <Grid container spacing={2}>
             {field('dishPressingCost', 'Dish Pressing (per kg)')}
             {field('machineCharges', 'Machine Charges')}
-            {field('agitatorAssemblyCost', 'Agitator Assembly')}
-            {field('acidCleaningCost', 'Acid Cleaning (per kg)')}
-            {field('mirrorFinishCost', 'Mirror Finish (per sqm)')}
+            {field('hardwareCost', 'Hardware')}
             {field('paintingCost', 'Painting')}
             {field('localTransportCost', 'Local Transport')}
           </Grid>
@@ -162,7 +142,8 @@ export default function AssumptionsPage() {
         <Button variant="outlined" onClick={handleReset} startIcon={<ResetIcon />}>
           Reset to Current
         </Button>
-        <Button variant="contained" onClick={handleApply} startIcon={<SaveIcon />}>
+        <Button variant="contained" onClick={handleApply} startIcon={<SaveIcon />}
+          sx={{ background: 'linear-gradient(135deg, #388e3c, #1b5e20)' }}>
           Apply Changes & Recalculate
         </Button>
       </Box>
