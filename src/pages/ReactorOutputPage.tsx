@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -45,17 +45,15 @@ function formatCurrency(val: number) {
 function TabPanel({ children, value, index }: { children: React.ReactNode; value: number; index: number }) {
   return (
     <div role="tabpanel" hidden={value !== index}>
-      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
+      <Box sx={{ pt: 3 }}>{children}</Box>
     </div>
   );
 }
 
 const profitMarks = [
-  { value: 20, label: '20%' },
+  { value: 0, label: '0%' },
   { value: 25, label: '25%' },
-  { value: 30, label: '30%' },
-  { value: 35, label: '35%' },
-  { value: 40, label: '40%' },
+  { value: 50, label: '50%' },
 ];
 
 export default function ReactorOutputPage() {
@@ -64,6 +62,8 @@ export default function ReactorOutputPage() {
   const [tabValue, setTabValue] = useState(0);
   const [exporting, setExporting] = useState(false);
   const [profitPercent, setProfitPercent] = useState<number>(assumptions.profitPercent);
+  const pieChartRef = useRef<HTMLDivElement>(null);
+  const lineChartRef = useRef<HTMLDivElement>(null);
 
   // Compute adjusted grand total based on profit slider (frontend only, no API call)
   const adjustedGrandTotal = useMemo(() => {
@@ -146,8 +146,31 @@ export default function ReactorOutputPage() {
 
   const handleExportPDF = async () => {
     setExporting(true);
-    await exportUnifiedPDF('reactor-pdf-export', 'Reactor-Cost-Analysis.pdf');
-    setExporting(false);
+    // Load html2canvas once for both captures
+    const html2canvas = (await import('html2canvas')).default;
+    // Allow DOM to settle before capturing charts
+    const CHART_CAPTURE_DELAY_MS = 200;
+    try {
+      // Capture pie chart as image
+      if (pieChartRef.current) {
+        const canvas = await html2canvas(pieChartRef.current, { scale: 2, useCORS: true, logging: false });
+        const imgSrc = canvas.toDataURL('image/png');
+        const pieImg = document.getElementById('pdf-pie-chart-img') as HTMLImageElement | null;
+        if (pieImg) pieImg.src = imgSrc;
+      }
+      // Capture line chart as image
+      if (lineChartRef.current) {
+        const canvas = await html2canvas(lineChartRef.current, { scale: 2, useCORS: true, logging: false });
+        const imgSrc = canvas.toDataURL('image/png');
+        const lineImg = document.getElementById('pdf-line-chart-img') as HTMLImageElement | null;
+        if (lineImg) lineImg.src = imgSrc;
+      }
+      // Brief wait for the <img> src assignments to propagate before PDF generation
+      await new Promise((resolve) => setTimeout(resolve, CHART_CAPTURE_DELAY_MS));
+      await exportUnifiedPDF('reactor-pdf-export', 'Reactor-Cost-Analysis.pdf');
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (!calculationResult) {
@@ -164,10 +187,10 @@ export default function ReactorOutputPage() {
   }
 
   const summaryCards = [
-    { label: 'Material Cost', value: formatCurrency(calculationResult.totalMaterialCost) },
-    { label: 'Labour Cost', value: formatCurrency(calculationResult.totalLabourCost) },
-    { label: 'Overhead', value: formatCurrency(calculationResult.overheadCost) },
-    { label: 'Grand Total', value: formatCurrency(adjustedGrandTotal), highlight: true },
+    { label: 'Material Cost', value: formatCurrency(calculationResult.totalMaterialCost), bgcolor: '#E3F2FD', accent: '#1976d2' },
+    { label: 'Labour Cost', value: formatCurrency(calculationResult.totalLabourCost), bgcolor: '#E8F5E9', accent: '#388e3c' },
+    { label: 'Overhead', value: formatCurrency(calculationResult.overheadCost), bgcolor: '#FFF3E0', accent: '#f57c00' },
+    { label: 'Grand Total', value: formatCurrency(adjustedGrandTotal), highlight: true, bgcolor: '#F3E5F5', accent: '#7b1fa2' },
   ];
 
   return (
@@ -198,39 +221,14 @@ export default function ReactorOutputPage() {
         </Box>
       </Box>
 
-      {/* Profit Modifier Slider */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, minWidth: 160 }}>
-            Profit Adjustment
-          </Typography>
-          <Chip label={`${profitPercent}% Profit`} color="primary" size="small" />
-        </Box>
-        <Box sx={{ px: 2 }}>
-          <Slider
-            value={profitPercent}
-            onChange={(_, val) => setProfitPercent(val as number)}
-            min={20}
-            max={40}
-            step={5}
-            marks={profitMarks}
-            valueLabelDisplay="auto"
-            valueLabelFormat={(v) => `${v}%`}
-            sx={{ color: '#1976d2' }}
-          />
-        </Box>
-        <Typography variant="caption" color="text.secondary">
-          Adjust profit percentage to see updated Grand Total (frontend recalculation, no API call required)
-        </Typography>
-      </Paper>
-
-      {/* Summary cards */}
+      {/* Summary cards + Profit Slider in one responsive grid */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        {summaryCards.map(({ label, value, highlight }) => (
+        {summaryCards.map(({ label, value, highlight, bgcolor, accent }) => (
           <Grid item xs={12} sm={6} md={3} key={label}>
             <Card
               sx={{
-                borderLeft: highlight ? '4px solid #1976d2' : '4px solid #e0e0e0',
+                bgcolor,
+                borderLeft: `4px solid ${accent}`,
                 height: '100%',
               }}
             >
@@ -238,13 +236,38 @@ export default function ReactorOutputPage() {
                 <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
                   {label}
                 </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: highlight ? '#1976d2' : 'inherit' }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: accent }}>
                   {value}
                 </Typography>
               </CardContent>
             </Card>
           </Grid>
         ))}
+
+        {/* Profit Slider — same size as a KPI card */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ bgcolor: '#FFFDE7', borderLeft: '4px solid #FBC02D', height: '100%' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Profit %
+                </Typography>
+                <Chip label={`${profitPercent}%`} size="small" sx={{ bgcolor: '#FBC02D', color: 'white', fontWeight: 700 }} />
+              </Box>
+              <Slider
+                value={profitPercent}
+                onChange={(_, val) => setProfitPercent(val as number)}
+                min={0}
+                max={50}
+                step={5}
+                marks={profitMarks}
+                valueLabelDisplay="auto"
+                valueLabelFormat={(v) => `${v}%`}
+                sx={{ color: '#FBC02D', mt: 1 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
 
       {/* Tabs */}
@@ -304,24 +327,26 @@ export default function ReactorOutputPage() {
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
               Cost Distribution
             </Typography>
-            <ResponsiveContainer width="100%" height={400}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={150}
-                  dataKey="value"
-                  label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''}: ${((percent ?? 0) * 100).toFixed(1)}%`}
-                >
-                  {pieData.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(v) => formatCurrency(Number(v))} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+            <div ref={pieChartRef}>
+              <ResponsiveContainer width="100%" height={400}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={150}
+                    dataKey="value"
+                    label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''}: ${((percent ?? 0) * 100).toFixed(1)}%`}
+                  >
+                    {pieData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v) => formatCurrency(Number(v))} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </TabPanel>
 
           {/* Tab 3: Forecast */}
@@ -329,16 +354,18 @@ export default function ReactorOutputPage() {
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
               5-Year Cost Forecast ({assumptions.annualInflationRate}% annual inflation)
             </Typography>
-            <ResponsiveContainer width="100%" height={350}>
-              <LineChart data={costForecastData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="year" />
-                <YAxis tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`} />
-                <Tooltip formatter={(v) => formatCurrency(Number(v))} />
-                <Legend />
-                <Line type="monotone" dataKey="cost" stroke="#1976d2" strokeWidth={2} dot={{ r: 5 }} name="Projected Cost" />
-              </LineChart>
-            </ResponsiveContainer>
+            <div ref={lineChartRef}>
+              <ResponsiveContainer width="100%" height={350}>
+                <LineChart data={costForecastData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="year" />
+                  <YAxis tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`} />
+                  <Tooltip formatter={(v) => formatCurrency(Number(v))} />
+                  <Legend />
+                  <Line type="monotone" dataKey="cost" stroke="#1976d2" strokeWidth={2} dot={{ r: 5 }} name="Projected Cost" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </TabPanel>
 
           {/* Tab 4: Commodity Scenarios – Table */}
@@ -424,7 +451,7 @@ export default function ReactorOutputPage() {
           position: 'absolute',
           left: '-9999px',
           top: 0,
-          width: '210mm',
+          width: '270mm',
           background: 'white',
           p: 4,
           fontFamily: 'Roboto, Arial, sans-serif',
@@ -473,7 +500,7 @@ export default function ReactorOutputPage() {
         <Typography variant="h5" sx={{ mt: 4, mb: 1, fontWeight: 700, color: '#1976d2', borderBottom: '2px solid #1976d2', pb: 0.5, pageBreakBefore: 'always' }}>
           2. Commodity Analysis
         </Typography>
-        <Table size="small">
+        <Table size="small" sx={{ mb: 2 }}>
           <TableHead>
             <TableRow sx={{ backgroundColor: '#e3f2fd' }}>
               <TableCell sx={{ fontWeight: 700 }}>Category</TableCell>
@@ -489,12 +516,14 @@ export default function ReactorOutputPage() {
             ))}
           </TableBody>
         </Table>
+        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Cost Distribution Chart</Typography>
+        <img id="pdf-pie-chart-img" alt="Cost distribution by category" style={{ maxWidth: '100%', display: 'block' }} />
 
         {/* Section 3 */}
         <Typography variant="h5" sx={{ mt: 4, mb: 1, fontWeight: 700, color: '#1976d2', borderBottom: '2px solid #1976d2', pb: 0.5 }}>
           3. 5-Year Forecast
         </Typography>
-        <Table size="small">
+        <Table size="small" sx={{ mb: 2 }}>
           <TableHead>
             <TableRow sx={{ backgroundColor: '#e3f2fd' }}>
               <TableCell sx={{ fontWeight: 700 }}>Year</TableCell>
@@ -510,6 +539,8 @@ export default function ReactorOutputPage() {
             ))}
           </TableBody>
         </Table>
+        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>5-Year Cost Forecast Chart</Typography>
+        <img id="pdf-line-chart-img" alt="5-year cost forecast projection" style={{ maxWidth: '100%', display: 'block' }} />
 
         {/* Section 4 */}
         <Typography variant="h5" sx={{ mt: 4, mb: 1, fontWeight: 700, color: '#1976d2', borderBottom: '2px solid #1976d2', pb: 0.5 }}>
