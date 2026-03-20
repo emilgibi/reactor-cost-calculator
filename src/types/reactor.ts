@@ -81,6 +81,47 @@ export interface ReactorAssumptions {
   annualInflationRate: number;
 }
 
+/** Structured assumptions format matching the backend API schema */
+export interface StructuredAssumptions {
+  MaterialCosts: {
+    ss304PlateCost: number;
+    ss304PipeCost: number;
+    msPlateCost: number;
+    msPipeCost: number;
+  };
+  LabourCosts: {
+    ssLabourCost: number;
+    msLabourCost: number;
+  };
+  DensityValues: {
+    ss304Density: number;
+    msDensity: number;
+  };
+  BroughtOutComponents: {
+    gearBox: number;
+    motor: number;
+    bearing: number;
+    singleMechanicalSeal: number;
+    doubleMechanicalSeal: number;
+    flexibleCoupling: number;
+    toughenedGlass: number;
+  };
+  FinancialPercentages: {
+    overhead: number;
+    profit: number;
+    inflationRate: number;
+  };
+  OtherCosts: {
+    dishPressingPerSqm: number;
+    machineCharges: number;
+    agitatorAssembly: number;
+    acidCleaningPerSqm: number;
+    mirrorFinishPerSqm: number;
+    paintingLumpsum: number;
+    localTransportLumpsum: number;
+  };
+}
+
 export interface ReactorCalculationResult {
   materialWeight: {
     ss304: number;
@@ -94,4 +135,28 @@ export interface ReactorCalculationResult {
   overheadCost: number;
   profitCost: number;
   grandTotal: number;
+}
+
+/** Dummy backend response shape – ready for real API integration */
+export interface BackendResponse {
+  lineItems: Array<{
+    name: string;
+    unitRate: number;
+    quantity: number;
+    totalCost: number;
+  }>;
+  componentCostSummary: {
+    materials: { cost: number; percentageOfGrandTotal: number };
+    labour: { cost: number; percentageOfGrandTotal: number };
+    consumables: { cost: number; percentageOfGrandTotal: number };
+    servicesAndOthers: { cost: number; percentageOfGrandTotal: number };
+    overhead: { cost: number; percentageOfGrandTotal: number };
+    profit: { cost: number; percentageOfGrandTotal: number };
+  };
+  totals: {
+    fabricationCost: number;
+    overhead: number;
+    profit: number;
+    grandTotal: number;
+  };
 }

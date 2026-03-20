@@ -3,9 +3,53 @@ import {
   ReactorFormInput,
   ReactorAssumptions,
   ReactorCalculationResult,
+  BackendResponse,
 } from '../types/reactor';
 
 export type { ReactorFormInput, ReactorAssumptions, ReactorCalculationResult };
+
+// Dummy backend response – represents the expected API response structure.
+// TODO: Replace with real API call when backend is ready.
+export const dummyBackendData: BackendResponse = {
+  lineItems: [
+    { name: 'SS 304 Plate', unitRate: 210, quantity: 3268.39, totalCost: 686361.22 },
+    { name: 'SS 304 Pipe', unitRate: 350, quantity: 83.06, totalCost: 29071.00 },
+    { name: 'MS Plate', unitRate: 65, quantity: 1084.42, totalCost: 70487.30 },
+    { name: 'MS Pipe', unitRate: 120, quantity: 3.98, totalCost: 477.01 },
+    { name: 'SS Labour', unitRate: 28, quantity: 3351.45, totalCost: 93840.60 },
+    { name: 'MS Labour', unitRate: 17, quantity: 1088.40, totalCost: 18502.80 },
+    { name: 'Gear Box', unitRate: 115000, quantity: 1, totalCost: 115000.00 },
+    { name: 'Motor (Flameproof)', unitRate: 90000, quantity: 1, totalCost: 90000.00 },
+    { name: 'Bearing', unitRate: 20000, quantity: 1, totalCost: 20000.00 },
+    { name: 'Single Mechanical Seal', unitRate: 80000, quantity: 1, totalCost: 80000.00 },
+    { name: 'Flexible Coupling', unitRate: 12500, quantity: 1, totalCost: 12500.00 },
+    { name: 'Toughened Glass', unitRate: 1000, quantity: 1, totalCost: 1000.00 },
+    { name: 'Hardware', unitRate: 1, quantity: 2500, totalCost: 2500.00 },
+    { name: 'Consumables', unitRate: 1, quantity: 12500, totalCost: 12500.00 },
+    { name: 'Dish Pressing', unitRate: 20, quantity: 972.2, totalCost: 19444.00 },
+    { name: 'Machine Charges', unitRate: 1, quantity: 50000, totalCost: 50000.00 },
+    { name: 'Agitator Assembly', unitRate: 1, quantity: 7500, totalCost: 7500.00 },
+    { name: 'Acid Cleaning', unitRate: 20, quantity: 278.73, totalCost: 5574.60 },
+    { name: 'Mirror Finish', unitRate: 1200, quantity: 26.18, totalCost: 31416.00 },
+    { name: 'Painting', unitRate: 1, quantity: 3000, totalCost: 3000.00 },
+    { name: 'Local Transport', unitRate: 1, quantity: 35000, totalCost: 35000.00 },
+    { name: 'Limpet', unitRate: 1, quantity: 198503, totalCost: 198503.00 },
+  ],
+  componentCostSummary: {
+    materials: { cost: 786396.53, percentageOfGrandTotal: 33.64 },
+    labour: { cost: 112343.28, percentageOfGrandTotal: 4.81 },
+    consumables: { cost: 66597.70, percentageOfGrandTotal: 2.85 },
+    servicesAndOthers: { cost: 668933.46, percentageOfGrandTotal: 28.63 },
+    overhead: { cost: 163427.10, percentageOfGrandTotal: 6.99 },
+    profit: { cost: 539309.42, percentageOfGrandTotal: 23.08 },
+  },
+  totals: {
+    fabricationCost: 1634270.97,
+    overhead: 163427.10,
+    profit: 539309.42,
+    grandTotal: 2337007.48,
+  },
+};
 
 interface ReactorContextType {
   inputs: ReactorFormInput;

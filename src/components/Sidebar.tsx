@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Input as InputIcon,
@@ -13,6 +13,7 @@ import '../styles/Sidebar.css';
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [expanded, setExpanded] = useState(false);
 
   const isActive = (path: string) => location.pathname.startsWith(path);
 
@@ -29,7 +30,11 @@ export default function Sidebar() {
   ];
 
   return (
-    <nav className="sidebar">
+    <nav
+      className={`sidebar${expanded ? ' expanded' : ''}`}
+      onMouseEnter={() => setExpanded(true)}
+      onMouseLeave={() => setExpanded(false)}
+    >
       <div className="sidebar-brand">
         <h2>Engineering Cost<br />Calculator</h2>
         <span>Multi-Equipment Platform</span>

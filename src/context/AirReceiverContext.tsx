@@ -3,9 +3,38 @@ import {
   AirReceiverFormInput,
   AirReceiverAssumptions,
   AirReceiverCalculationResult,
+  AirReceiverBackendResponse,
 } from '../types/airReceiver';
 
 export type { AirReceiverFormInput, AirReceiverAssumptions, AirReceiverCalculationResult };
+
+// Dummy backend response – represents the expected API response structure.
+// TODO: Replace with real API call when backend is ready.
+export const dummyBackendData: AirReceiverBackendResponse = {
+  lineItems: [
+    { name: 'SS 304 Plate', unitRate: 210, quantity: 1850.00, totalCost: 388500.00 },
+    { name: 'SS Labour', unitRate: 28, quantity: 1850.00, totalCost: 51800.00 },
+    { name: 'Dish Pressing', unitRate: 20, quantity: 450.00, totalCost: 9000.00 },
+    { name: 'Machine Charges', unitRate: 1, quantity: 30000, totalCost: 30000.00 },
+    { name: 'Hardware', unitRate: 1, quantity: 5000, totalCost: 5000.00 },
+    { name: 'Painting', unitRate: 1, quantity: 3000, totalCost: 3000.00 },
+    { name: 'Local Transport', unitRate: 1, quantity: 20000, totalCost: 20000.00 },
+  ],
+  componentCostSummary: {
+    materials: { cost: 388500.00, percentageOfGrandTotal: 56.32 },
+    labour: { cost: 51800.00, percentageOfGrandTotal: 7.51 },
+    consumables: { cost: 0, percentageOfGrandTotal: 0 },
+    servicesAndOthers: { cost: 67000.00, percentageOfGrandTotal: 9.72 },
+    overhead: { cost: 50730.00, percentageOfGrandTotal: 7.36 },
+    profit: { cost: 131397.00, percentageOfGrandTotal: 19.05 },
+  },
+  totals: {
+    fabricationCost: 507300.00,
+    overhead: 50730.00,
+    profit: 167409.00,
+    grandTotal: 725439.00,
+  },
+};
 
 interface AirReceiverContextType {
   inputs: AirReceiverFormInput;
@@ -22,18 +51,18 @@ interface AirReceiverContextType {
 export const defaultInputs: AirReceiverFormInput = {
   Specification: {
     Shell: {
-      moc: 'MS',
+      moc: 'SS304',
       diameter: 1200,
       height: 3000,
       thickness: 10,
     },
     Dish: {
-      moc: 'MS',
+      moc: 'SS304',
       diameter: 1200,
       thickness: 10,
     },
     Nozzle: {
-      moc: 'MS',
+      moc: 'SS304',
       count: 4,
     },
     Finish: {

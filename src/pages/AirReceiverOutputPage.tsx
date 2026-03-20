@@ -16,13 +16,13 @@ import {
   Alert,
   Card,
   CardContent,
+  Slider,
+  Chip,
 } from '@mui/material';
 import {
   PieChart,
   Pie,
   Cell,
-  BarChart,
-  Bar,
   LineChart,
   Line,
   XAxis,
@@ -34,7 +34,7 @@ import {
 } from 'recharts';
 import { Download as PrintIcon, Edit as EditIcon } from '@mui/icons-material';
 import { useAirReceiver } from '../context/AirReceiverContext';
-import { exportToPDF } from '../utils/pdfGenerator';
+import { exportUnifiedPDF } from '../utils/pdfGenerator';
 
 const COLORS = ['#388e3c', '#1976d2', '#dc004e', '#f57c00', '#7b1fa2', '#0097a7'];
 
@@ -50,46 +50,66 @@ function TabPanel({ children, value, index }: { children: React.ReactNode; value
   );
 }
 
+const profitMarks = [
+  { value: 20, label: '20%' },
+  { value: 25, label: '25%' },
+  { value: 30, label: '30%' },
+  { value: 35, label: '35%' },
+  { value: 40, label: '40%' },
+];
+
 export default function AirReceiverOutputPage() {
   const { calculationResult, assumptions, inputs } = useAirReceiver();
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
   const [exporting, setExporting] = useState(false);
+  const [profitPercent, setProfitPercent] = useState<number>(assumptions.profitPercent);
+
+  // Compute adjusted grand total based on profit slider (frontend only, no API call)
+  const adjustedGrandTotal = useMemo(() => {
+    if (!calculationResult) return 0;
+    const profitBase = calculationResult.grandTotal - calculationResult.profitCost;
+    return profitBase + (profitBase * profitPercent) / 100;
+  }, [calculationResult, profitPercent]);
+
+  const adjustedProfitCost = useMemo(() => {
+    if (!calculationResult) return 0;
+    const profitBase = calculationResult.grandTotal - calculationResult.profitCost;
+    return (profitBase * profitPercent) / 100;
+  }, [calculationResult, profitPercent]);
 
   const costForecastData = useMemo(() => {
     if (!calculationResult) return [];
     return Array.from({ length: 6 }, (_, year) => ({
       year: `Year ${year}`,
-      cost: Math.round(calculationResult.grandTotal * Math.pow(1 + assumptions.annualInflationRate / 100, year)),
+      cost: Math.round(adjustedGrandTotal * Math.pow(1 + assumptions.annualInflationRate / 100, year)),
     }));
-  }, [calculationResult, assumptions]);
+  }, [adjustedGrandTotal, assumptions, calculationResult]);
 
   const commodityScenarioData = useMemo(() => {
     if (!calculationResult) return [];
-    const base = calculationResult.grandTotal;
+    const base = adjustedGrandTotal;
     const cb = calculationResult.costBreakdown;
-    const ss304 = (cb['SS304 Plate'] || 0);
-    const ms = (cb['MS Plate'] || 0);
+    const ss304 = cb['SS304 Plate'] || 0;
+    const ms = cb['MS Plate'] || 0;
     const labour = (cb['SS Labour'] || 0) + (cb['MS Labour'] || 0);
     return [
-      { scenario: 'Base', cost: base },
-      { scenario: '+10% SS304', cost: base + ss304 * 0.1 },
-      { scenario: '+10% MS', cost: base + ms * 0.1 },
-      { scenario: '+10% Labour', cost: base + labour * 0.1 },
+      { scenario: '+10% SS304', baseValue: base, scenarioValue: base + ss304 * 0.1 },
+      { scenario: '+10% MS', baseValue: base, scenarioValue: base + ms * 0.1 },
+      { scenario: '+10% Labour', baseValue: base, scenarioValue: base + labour * 0.1 },
     ];
-  }, [calculationResult]);
+  }, [calculationResult, adjustedGrandTotal]);
 
   const specScenarioData = useMemo(() => {
     if (!calculationResult) return [];
-    const base = calculationResult.grandTotal;
+    const base = adjustedGrandTotal;
     const matLabour = calculationResult.totalMaterialCost + calculationResult.totalLabourCost;
     return [
-      { scenario: 'Base', cost: base },
-      { scenario: '+10% Diameter', cost: base + matLabour * 0.08 },
-      { scenario: '+10% Height', cost: base + matLabour * 0.1 },
-      { scenario: '+10% Thickness', cost: base + matLabour * 0.1 },
+      { scenario: '+10% Diameter', baseValue: base, scenarioValue: base + matLabour * 0.08 },
+      { scenario: '+10% Height', baseValue: base, scenarioValue: base + matLabour * 0.1 },
+      { scenario: '+10% Thickness', baseValue: base, scenarioValue: base + matLabour * 0.1 },
     ];
-  }, [calculationResult]);
+  }, [calculationResult, adjustedGrandTotal]);
 
   const pieData = useMemo(() => {
     if (!calculationResult) return [];
@@ -99,17 +119,17 @@ export default function AirReceiverOutputPage() {
       'MS Material': cb['MS Plate'] || 0,
       'Labour': (cb['SS Labour'] || 0) + (cb['MS Labour'] || 0),
       'Services': (cb['Dish Pressing'] || 0) + (cb['Machine Charges'] || 0),
-      'Overhead & Profit': (cb['Overhead'] || 0) + (cb['Profit'] || 0),
+      'Overhead & Profit': (cb['Overhead'] || 0) + adjustedProfitCost,
       'Other': (cb['Hardware'] || 0) + (cb['Painting'] || 0) + (cb['Local Transport'] || 0),
     };
     return Object.entries(groups)
       .filter(([, v]) => v > 0)
       .map(([name, value]) => ({ name, value: Math.round(value) }));
-  }, [calculationResult]);
+  }, [calculationResult, adjustedProfitCost]);
 
   const handleExportPDF = async () => {
     setExporting(true);
-    await exportToPDF('airreceiver-output-content', 'AirReceiver-Cost-Analysis.pdf');
+    await exportUnifiedPDF('airreceiver-pdf-export', 'AirReceiver-Cost-Analysis.pdf');
     setExporting(false);
   };
 
@@ -131,7 +151,7 @@ export default function AirReceiverOutputPage() {
     { label: 'Material Cost', value: formatCurrency(calculationResult.totalMaterialCost) },
     { label: 'Labour Cost', value: formatCurrency(calculationResult.totalLabourCost) },
     { label: 'Overhead', value: formatCurrency(calculationResult.overheadCost) },
-    { label: 'Grand Total', value: formatCurrency(calculationResult.grandTotal), highlight: true },
+    { label: 'Grand Total', value: formatCurrency(adjustedGrandTotal), highlight: true },
   ];
 
   return (
@@ -161,6 +181,32 @@ export default function AirReceiverOutputPage() {
           </Button>
         </Box>
       </Box>
+
+      {/* Profit Modifier Slider */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, minWidth: 160 }}>
+            Profit Adjustment
+          </Typography>
+          <Chip label={`${profitPercent}% Profit`} color="success" size="small" />
+        </Box>
+        <Box sx={{ px: 2 }}>
+          <Slider
+            value={profitPercent}
+            onChange={(_, val) => setProfitPercent(val as number)}
+            min={20}
+            max={40}
+            step={5}
+            marks={profitMarks}
+            valueLabelDisplay="auto"
+            valueLabelFormat={(v) => `${v}%`}
+            sx={{ color: '#388e3c' }}
+          />
+        </Box>
+        <Typography variant="caption" color="text.secondary">
+          Adjust profit percentage to see updated Grand Total (frontend recalculation, no API call required)
+        </Typography>
+      </Paper>
 
       {/* Summary cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -197,7 +243,7 @@ export default function AirReceiverOutputPage() {
           <Tab label="Specification Scenarios" />
         </Tabs>
 
-        <Box sx={{ p: 3 }} id="airreceiver-output-content">
+        <Box sx={{ p: 3 }}>
           <TabPanel value={tabValue} index={0}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Cost Breakdown</Typography>
             <Table size="small">
@@ -209,16 +255,20 @@ export default function AirReceiverOutputPage() {
               </TableHead>
               <TableBody>
                 {Object.entries(calculationResult.costBreakdown)
-                  .filter(([, v]) => v > 0)
+                  .filter(([k, v]) => v > 0 && k !== 'Profit')
                   .map(([key, val]) => (
                     <TableRow key={key} hover>
                       <TableCell>{key}</TableCell>
                       <TableCell align="right">{formatCurrency(val)}</TableCell>
                     </TableRow>
                   ))}
+                <TableRow hover>
+                  <TableCell>Profit ({profitPercent}%)</TableCell>
+                  <TableCell align="right">{formatCurrency(adjustedProfitCost)}</TableCell>
+                </TableRow>
                 <TableRow sx={{ backgroundColor: '#e8f5e9' }}>
                   <TableCell sx={{ fontWeight: 700 }}>GRAND TOTAL</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{formatCurrency(calculationResult.grandTotal)}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{formatCurrency(adjustedGrandTotal)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -254,37 +304,226 @@ export default function AirReceiverOutputPage() {
             </ResponsiveContainer>
           </TabPanel>
 
+          {/* Tab 4: Commodity Scenarios – Table */}
           <TabPanel value={tabValue} index={3}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Commodity Scenarios (+10% changes)</Typography>
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={commodityScenarioData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="scenario" />
-                <YAxis tickFormatter={(v) => `₹${(v / 100000).toFixed(0)}L`} />
-                <Tooltip formatter={(v) => formatCurrency(Number(v))} />
-                <Bar dataKey="cost" name="Total Cost">
-                  {commodityScenarioData.map((_, i) => <Cell key={i} fill={i === 0 ? '#388e3c' : '#dc004e'} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Commodity Scenarios (+10% price changes)</Typography>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ backgroundColor: '#f1f8e9' }}>
+                  <TableCell sx={{ fontWeight: 700 }}>Scenario</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>Base Cost</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>Scenario Cost (+10%)</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>Impact</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>% Change</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {commodityScenarioData.map((row, idx) => {
+                  const impact = row.scenarioValue - row.baseValue;
+                  const pctChange = ((impact / row.baseValue) * 100).toFixed(2);
+                  return (
+                    <TableRow key={row.scenario} sx={{ backgroundColor: idx % 2 === 0 ? '#fafafa' : 'white' }}>
+                      <TableCell sx={{ fontWeight: 500 }}>{row.scenario}</TableCell>
+                      <TableCell align="right">{formatCurrency(row.baseValue)}</TableCell>
+                      <TableCell align="right">{formatCurrency(row.scenarioValue)}</TableCell>
+                      <TableCell align="right" sx={{ color: '#dc004e', fontWeight: 600 }}>+{formatCurrency(impact)}</TableCell>
+                      <TableCell align="right" sx={{ color: '#dc004e', fontWeight: 600 }}>+{pctChange}%</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </TabPanel>
 
+          {/* Tab 5: Specification Scenarios – Table */}
           <TabPanel value={tabValue} index={4}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Specification Scenarios (+10% changes)</Typography>
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={specScenarioData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="scenario" />
-                <YAxis tickFormatter={(v) => `₹${(v / 100000).toFixed(0)}L`} />
-                <Tooltip formatter={(v) => formatCurrency(Number(v))} />
-                <Bar dataKey="cost" name="Total Cost">
-                  {specScenarioData.map((_, i) => <Cell key={i} fill={i === 0 ? '#388e3c' : '#1976d2'} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Specification Scenarios (+10% dimension changes)</Typography>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ backgroundColor: '#f1f8e9' }}>
+                  <TableCell sx={{ fontWeight: 700 }}>Scenario</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>Base Cost</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>Scenario Cost (+10%)</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>Impact</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>% Change</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {specScenarioData.map((row, idx) => {
+                  const impact = row.scenarioValue - row.baseValue;
+                  const pctChange = ((impact / row.baseValue) * 100).toFixed(2);
+                  return (
+                    <TableRow key={row.scenario} sx={{ backgroundColor: idx % 2 === 0 ? '#fafafa' : 'white' }}>
+                      <TableCell sx={{ fontWeight: 500 }}>{row.scenario}</TableCell>
+                      <TableCell align="right">{formatCurrency(row.baseValue)}</TableCell>
+                      <TableCell align="right">{formatCurrency(row.scenarioValue)}</TableCell>
+                      <TableCell align="right" sx={{ color: '#388e3c', fontWeight: 600 }}>+{formatCurrency(impact)}</TableCell>
+                      <TableCell align="right" sx={{ color: '#388e3c', fontWeight: 600 }}>+{pctChange}%</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </TabPanel>
         </Box>
       </Paper>
+
+      {/* Hidden unified PDF export container */}
+      <Box
+        id="airreceiver-pdf-export"
+        sx={{
+          position: 'absolute',
+          left: '-9999px',
+          top: 0,
+          width: '210mm',
+          background: 'white',
+          p: 4,
+          fontFamily: 'Roboto, Arial, sans-serif',
+        }}
+      >
+        <Typography variant="h4" sx={{ mb: 1, fontWeight: 700, color: '#1b5e20' }}>
+          Air Receiver Cost Analysis Report
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Generated: {new Date().toLocaleString()} | Shell: {inputs.Specification.Shell.moc} |
+          Dia: {inputs.Specification.Shell.diameter} mm | Profit: {profitPercent}%
+        </Typography>
+
+        {/* Section 1 */}
+        <Typography variant="h5" sx={{ mt: 3, mb: 1, fontWeight: 700, color: '#388e3c', borderBottom: '2px solid #388e3c', pb: 0.5 }}>
+          1. Calculation Breakdown
+        </Typography>
+        <Table size="small">
+          <TableHead>
+            <TableRow sx={{ backgroundColor: '#e8f5e9' }}>
+              <TableCell sx={{ fontWeight: 700 }}>Component</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>Amount (₹)</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {Object.entries(calculationResult.costBreakdown)
+              .filter(([k, v]) => v > 0 && k !== 'Profit')
+              .map(([key, val], i) => (
+                <TableRow key={key} sx={{ backgroundColor: i % 2 === 0 ? '#fafafa' : 'white' }}>
+                  <TableCell>{key}</TableCell>
+                  <TableCell align="right">{formatCurrency(val)}</TableCell>
+                </TableRow>
+              ))}
+            <TableRow sx={{ backgroundColor: '#fafafa' }}>
+              <TableCell>Profit ({profitPercent}%)</TableCell>
+              <TableCell align="right">{formatCurrency(adjustedProfitCost)}</TableCell>
+            </TableRow>
+            <TableRow sx={{ backgroundColor: '#e8f5e9' }}>
+              <TableCell sx={{ fontWeight: 700 }}>GRAND TOTAL</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>{formatCurrency(adjustedGrandTotal)}</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+
+        {/* Section 2 */}
+        <Typography variant="h5" sx={{ mt: 4, mb: 1, fontWeight: 700, color: '#388e3c', borderBottom: '2px solid #388e3c', pb: 0.5 }}>
+          2. Commodity Analysis
+        </Typography>
+        <Table size="small">
+          <TableHead>
+            <TableRow sx={{ backgroundColor: '#e8f5e9' }}>
+              <TableCell sx={{ fontWeight: 700 }}>Category</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>Amount (₹)</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {pieData.map((row, i) => (
+              <TableRow key={row.name} sx={{ backgroundColor: i % 2 === 0 ? '#fafafa' : 'white' }}>
+                <TableCell>{row.name}</TableCell>
+                <TableCell align="right">{formatCurrency(row.value)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+
+        {/* Section 3 */}
+        <Typography variant="h5" sx={{ mt: 4, mb: 1, fontWeight: 700, color: '#388e3c', borderBottom: '2px solid #388e3c', pb: 0.5 }}>
+          3. 5-Year Forecast
+        </Typography>
+        <Table size="small">
+          <TableHead>
+            <TableRow sx={{ backgroundColor: '#e8f5e9' }}>
+              <TableCell sx={{ fontWeight: 700 }}>Year</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>Projected Cost (₹)</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {costForecastData.map((row, i) => (
+              <TableRow key={row.year} sx={{ backgroundColor: i % 2 === 0 ? '#fafafa' : 'white' }}>
+                <TableCell>{row.year}</TableCell>
+                <TableCell align="right">{formatCurrency(row.cost)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+
+        {/* Section 4 */}
+        <Typography variant="h5" sx={{ mt: 4, mb: 1, fontWeight: 700, color: '#388e3c', borderBottom: '2px solid #388e3c', pb: 0.5 }}>
+          4. Commodity Scenarios
+        </Typography>
+        <Table size="small">
+          <TableHead>
+            <TableRow sx={{ backgroundColor: '#e8f5e9' }}>
+              <TableCell sx={{ fontWeight: 700 }}>Scenario</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>Base Cost</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>Scenario Cost (+10%)</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>Impact</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>% Change</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {commodityScenarioData.map((row, idx) => {
+              const impact = row.scenarioValue - row.baseValue;
+              const pctChange = ((impact / row.baseValue) * 100).toFixed(2);
+              return (
+                <TableRow key={row.scenario} sx={{ backgroundColor: idx % 2 === 0 ? '#fafafa' : 'white' }}>
+                  <TableCell>{row.scenario}</TableCell>
+                  <TableCell align="right">{formatCurrency(row.baseValue)}</TableCell>
+                  <TableCell align="right">{formatCurrency(row.scenarioValue)}</TableCell>
+                  <TableCell align="right">+{formatCurrency(impact)}</TableCell>
+                  <TableCell align="right">+{pctChange}%</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+
+        {/* Section 5 */}
+        <Typography variant="h5" sx={{ mt: 4, mb: 1, fontWeight: 700, color: '#388e3c', borderBottom: '2px solid #388e3c', pb: 0.5 }}>
+          5. Specification Scenarios
+        </Typography>
+        <Table size="small">
+          <TableHead>
+            <TableRow sx={{ backgroundColor: '#e8f5e9' }}>
+              <TableCell sx={{ fontWeight: 700 }}>Scenario</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>Base Cost</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>Scenario Cost (+10%)</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>Impact</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>% Change</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {specScenarioData.map((row, idx) => {
+              const impact = row.scenarioValue - row.baseValue;
+              const pctChange = ((impact / row.baseValue) * 100).toFixed(2);
+              return (
+                <TableRow key={row.scenario} sx={{ backgroundColor: idx % 2 === 0 ? '#fafafa' : 'white' }}>
+                  <TableCell>{row.scenario}</TableCell>
+                  <TableCell align="right">{formatCurrency(row.baseValue)}</TableCell>
+                  <TableCell align="right">{formatCurrency(row.scenarioValue)}</TableCell>
+                  <TableCell align="right">+{formatCurrency(impact)}</TableCell>
+                  <TableCell align="right">+{pctChange}%</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Box>
     </Box>
   );
 }

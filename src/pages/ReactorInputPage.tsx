@@ -62,7 +62,7 @@ export default function ReactorInputPage() {
     setLoadDialogOpen(false);
   };
 
-  const mocOptions = ['SS304', 'SS316', 'MS', 'Hastelloy C276'];
+  const restrictedMocOptions = ['SS304', 'SS316'];
   const sealTypes = ['Single', 'Double', 'Gland'] as const;
   const motorTypes = ['Flameproof', 'Non-Flameproof'] as const;
   const bladeTypes = ['Gate anchor', 'Turbine'] as const;
@@ -104,7 +104,7 @@ export default function ReactorInputPage() {
                 value={spec.Shell.moc}
                 onChange={(e) => setSpec({ Shell: { ...spec.Shell, moc: e.target.value } })}
               >
-                {mocOptions.map((o) => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                {restrictedMocOptions.map((o) => <MenuItem key={o} value={o}>{o}</MenuItem>)}
               </Select>
             </FormControl>
           </Grid>
@@ -164,7 +164,7 @@ export default function ReactorInputPage() {
                 value={spec.Dish.moc}
                 onChange={(e) => setSpec({ Dish: { ...spec.Dish, moc: e.target.value } })}
               >
-                {mocOptions.map((o) => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                {restrictedMocOptions.map((o) => <MenuItem key={o} value={o}>{o}</MenuItem>)}
               </Select>
             </FormControl>
           </Grid>
@@ -260,7 +260,7 @@ export default function ReactorInputPage() {
                 value={spec.Shaft.moc}
                 onChange={(e) => setSpec({ Shaft: { ...spec.Shaft, moc: e.target.value } })}
               >
-                {mocOptions.map((o) => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                {restrictedMocOptions.map((o) => <MenuItem key={o} value={o}>{o}</MenuItem>)}
               </Select>
             </FormControl>
           </Grid>
@@ -283,6 +283,12 @@ export default function ReactorInputPage() {
             Limpet Coil
           </Typography>
           <Grid container spacing={3}>
+            <Grid item xs={12} sm={6} md={4}>
+              <Box sx={{ p: 1.5, backgroundColor: '#f5f5f5', borderRadius: 1, border: '1px solid #e0e0e0' }}>
+                <Typography variant="caption" color="text.secondary">MOC (Fixed)</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>MS</Typography>
+              </Box>
+            </Grid>
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
