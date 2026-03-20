@@ -1,16 +1,30 @@
 .sidebar {
-  width: 260px;
+  width: 64px;
   min-height: 100vh;
   background: #1a237e;
   color: white;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  overflow: hidden;
+  transition: width 0.25s ease;
+}
+
+.sidebar.expanded {
+  width: 260px;
 }
 
 .sidebar-brand {
   padding: 24px 20px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar.expanded .sidebar-brand {
+  opacity: 1;
 }
 
 .sidebar-brand h2 {
@@ -39,6 +53,14 @@
   color: rgba(255, 255, 255, 0.5);
   padding: 8px 12px 4px;
   margin-top: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar.expanded .sidebar-section-label {
+  opacity: 1;
 }
 
 .sidebar-nav-item {
@@ -53,6 +75,13 @@
   color: rgba(255, 255, 255, 0.8);
   font-size: 0.9rem;
   transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  justify-content: center;
+}
+
+.sidebar.expanded .sidebar-nav-item {
+  justify-content: flex-start;
 }
 
 .sidebar-nav-item:hover {
@@ -66,10 +95,16 @@
   font-weight: 600;
 }
 
-.sidebar-nav-item svg {
-  font-size: 1.2rem;
-  flex-shrink: 0;
+.sidebar-nav-item span {
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
+
+.sidebar.expanded .sidebar-nav-item span {
+  opacity: 1;
+}
+
+
 
 .sidebar-footer {
   padding: 16px 12px;
@@ -86,6 +121,22 @@
   text-decoration: none;
   font-size: 0.875rem;
   transition: background 0.15s, color 0.15s;
+  justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sidebar.expanded .sidebar-home-link {
+  justify-content: flex-start;
+}
+
+.sidebar-home-link span {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar.expanded .sidebar-home-link span {
+  opacity: 1;
 }
 
 .sidebar-home-link:hover {

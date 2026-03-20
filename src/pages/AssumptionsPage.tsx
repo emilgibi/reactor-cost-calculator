@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   TextField,
@@ -9,6 +10,8 @@ import {
   AccordionSummary,
   AccordionDetails,
   Divider,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import { useReactor } from '../context/ReactorContext';
 import { ExpandMore as ExpandMoreIcon, Save as SaveIcon, Refresh as ResetIcon } from '@mui/icons-material';
@@ -16,7 +19,9 @@ import { ReactorAssumptions } from '../types/reactor';
 
 export default function AssumptionsPage() {
   const { assumptions, updateAssumptions, calculateCosts } = useReactor();
+  const navigate = useNavigate();
   const [localAssumptions, setLocalAssumptions] = useState<ReactorAssumptions>({ ...assumptions });
+  const [toastOpen, setToastOpen] = useState(false);
 
   const handleChange = (key: keyof ReactorAssumptions, value: string) => {
     setLocalAssumptions((prev) => ({ ...prev, [key]: parseFloat(value) || 0 }));
@@ -25,6 +30,8 @@ export default function AssumptionsPage() {
   const handleApply = () => {
     updateAssumptions(localAssumptions);
     calculateCosts();
+    setToastOpen(true);
+    setTimeout(() => navigate('/reactor/output'), 1200);
   };
 
   const handleReset = () => {
@@ -166,6 +173,17 @@ export default function AssumptionsPage() {
           Apply Changes & Recalculate
         </Button>
       </Box>
+
+      <Snackbar
+        open={toastOpen}
+        autoHideDuration={2000}
+        onClose={() => setToastOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="success" onClose={() => setToastOpen(false)} sx={{ width: '100%' }}>
+          Assumptions applied! Navigating to Output & Analysis…
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

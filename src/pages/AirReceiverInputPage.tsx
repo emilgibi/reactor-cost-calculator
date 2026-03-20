@@ -59,7 +59,7 @@ export default function AirReceiverInputPage() {
     setLoadDialogOpen(false);
   };
 
-  const mocOptions = ['SS304', 'SS316', 'MS'];
+  const mocOptions = ['SS304', 'SS316'];
   const finishTypes = ['Internal', 'External', 'Both', 'None'] as const;
 
   return (
