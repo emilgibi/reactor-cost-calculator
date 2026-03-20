@@ -94,7 +94,7 @@ export default function Sidebar() {
           >
             <HomeIcon sx={{ fontSize: 20, flexShrink: 0 }} />
             <span className="sidebar-item-full">Back to Home</span>
-            <span className="sidebar-item-abbrev">🏠</span>
+            <span className="sidebar-item-abbrev">HME</span>
           </div>
         </Tooltip>
       </div>
