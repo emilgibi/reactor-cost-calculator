@@ -199,12 +199,12 @@ export default function ReactorOutputPage() {
       </Box>
 
       {/* Profit Modifier Slider */}
-      <Paper sx={{ p: 3, mb: 3 }}>
+      <Box sx={{ mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 600, minWidth: 160 }}>
             Profit Adjustment
           </Typography>
-          <Chip label={`${profitPercent}% Profit`} color="primary" size="small" />
+          <Chip label={`${profitPercent}% Profit`} color="default" size="small" />
         </Box>
         <Box sx={{ px: 2 }}>
           <Slider
@@ -216,13 +216,13 @@ export default function ReactorOutputPage() {
             marks={profitMarks}
             valueLabelDisplay="auto"
             valueLabelFormat={(v) => `${v}%`}
-            sx={{ color: '#1976d2' }}
+            sx={{ color: 'text.secondary' }}
           />
         </Box>
         <Typography variant="caption" color="text.secondary">
           Adjust profit percentage to see updated Grand Total (frontend recalculation, no API call required)
         </Typography>
-      </Paper>
+      </Box>
 
       {/* Summary cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
