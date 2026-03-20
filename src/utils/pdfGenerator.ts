@@ -44,7 +44,7 @@ export async function exportUnifiedPDF(elementId: string, filename: string): Pro
   element.style.cssText = 'position: static; left: 0; visibility: visible;';
 
   const options = {
-    margin: [15, 15, 15, 15] as [number, number, number, number],
+    margin: [12, 12, 12, 12] as [number, number, number, number],
     filename,
     image: { type: 'jpeg' as const, quality: 0.98 },
     html2canvas: {
@@ -55,7 +55,7 @@ export async function exportUnifiedPDF(elementId: string, filename: string): Pro
     jsPDF: {
       unit: 'mm' as const,
       format: 'a4' as const,
-      orientation: 'portrait' as const,
+      orientation: 'landscape' as const,
     },
     pagebreak: { mode: ['css', 'legacy'] as const },
   };

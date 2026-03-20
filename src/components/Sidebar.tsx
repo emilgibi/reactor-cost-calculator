@@ -8,6 +8,7 @@ import {
   Air as AirIcon,
   Biotech as ReactorIcon,
 } from '@mui/icons-material';
+import { Tooltip } from '@mui/material';
 import '../styles/Sidebar.css';
 
 export default function Sidebar() {
@@ -48,14 +49,15 @@ export default function Sidebar() {
         {reactorItems.map((item) => {
           const Icon = item.icon;
           return (
-            <div
-              key={item.path}
-              className={`sidebar-nav-item${isActive(item.path) ? ' active' : ''}`}
-              onClick={() => navigate(item.path)}
-            >
-              <Icon sx={{ fontSize: 20 }} />
-              <span>{item.label}</span>
-            </div>
+            <Tooltip key={item.path} title={expanded ? '' : item.label} placement="right" arrow>
+              <div
+                className={`sidebar-nav-item${isActive(item.path) ? ' active' : ''}`}
+                onClick={() => navigate(item.path)}
+              >
+                <Icon sx={{ fontSize: 20 }} />
+                <span>{item.label}</span>
+              </div>
+            </Tooltip>
           );
         })}
 
@@ -66,27 +68,30 @@ export default function Sidebar() {
         {airReceiverItems.map((item) => {
           const Icon = item.icon;
           return (
-            <div
-              key={item.path}
-              className={`sidebar-nav-item${isActive(item.path) ? ' active' : ''}`}
-              onClick={() => navigate(item.path)}
-            >
-              <Icon sx={{ fontSize: 20 }} />
-              <span>{item.label}</span>
-            </div>
+            <Tooltip key={item.path} title={expanded ? '' : item.label} placement="right" arrow>
+              <div
+                className={`sidebar-nav-item${isActive(item.path) ? ' active' : ''}`}
+                onClick={() => navigate(item.path)}
+              >
+                <Icon sx={{ fontSize: 20 }} />
+                <span>{item.label}</span>
+              </div>
+            </Tooltip>
           );
         })}
       </div>
 
       <div className="sidebar-footer">
-        <div
-          className="sidebar-home-link"
-          onClick={() => navigate('/')}
-          style={{ cursor: 'pointer' }}
-        >
-          <HomeIcon sx={{ fontSize: 20 }} />
-          <span>Back to Home</span>
-        </div>
+        <Tooltip title={expanded ? '' : 'Back to Home'} placement="right" arrow>
+          <div
+            className="sidebar-home-link"
+            onClick={() => navigate('/')}
+            style={{ cursor: 'pointer' }}
+          >
+            <HomeIcon sx={{ fontSize: 20 }} />
+            <span>Back to Home</span>
+          </div>
+        </Tooltip>
       </div>
     </nav>
   );
