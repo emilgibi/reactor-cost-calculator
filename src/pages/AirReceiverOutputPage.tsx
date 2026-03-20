@@ -16,8 +16,6 @@ import {
   Alert,
   Card,
   CardContent,
-  Slider,
-  Chip,
 } from '@mui/material';
 import {
   PieChart,
@@ -50,45 +48,23 @@ function TabPanel({ children, value, index }: { children: React.ReactNode; value
   );
 }
 
-const profitMarks = [
-  { value: 20, label: '20%' },
-  { value: 25, label: '25%' },
-  { value: 30, label: '30%' },
-  { value: 35, label: '35%' },
-  { value: 40, label: '40%' },
-];
-
 export default function AirReceiverOutputPage() {
   const { calculationResult, assumptions, inputs } = useAirReceiver();
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
   const [exporting, setExporting] = useState(false);
-  const [profitPercent, setProfitPercent] = useState<number>(assumptions.profitPercent);
-
-  // Compute adjusted grand total based on profit slider (frontend only, no API call)
-  const adjustedGrandTotal = useMemo(() => {
-    if (!calculationResult) return 0;
-    const profitBase = calculationResult.grandTotal - calculationResult.profitCost;
-    return profitBase + (profitBase * profitPercent) / 100;
-  }, [calculationResult, profitPercent]);
-
-  const adjustedProfitCost = useMemo(() => {
-    if (!calculationResult) return 0;
-    const profitBase = calculationResult.grandTotal - calculationResult.profitCost;
-    return (profitBase * profitPercent) / 100;
-  }, [calculationResult, profitPercent]);
 
   const costForecastData = useMemo(() => {
     if (!calculationResult) return [];
     return Array.from({ length: 6 }, (_, year) => ({
       year: `Year ${year}`,
-      cost: Math.round(adjustedGrandTotal * Math.pow(1 + assumptions.annualInflationRate / 100, year)),
+      cost: Math.round(calculationResult.grandTotal * Math.pow(1 + assumptions.annualInflationRate / 100, year)),
     }));
-  }, [adjustedGrandTotal, assumptions, calculationResult]);
+  }, [calculationResult, assumptions]);
 
   const commodityScenarioData = useMemo(() => {
     if (!calculationResult) return [];
-    const base = adjustedGrandTotal;
+    const base = calculationResult.grandTotal;
     const cb = calculationResult.costBreakdown;
     const ss304 = cb['SS304 Plate'] || 0;
     const ms = cb['MS Plate'] || 0;
@@ -98,18 +74,18 @@ export default function AirReceiverOutputPage() {
       { scenario: '+10% MS', baseValue: base, scenarioValue: base + ms * 0.1 },
       { scenario: '+10% Labour', baseValue: base, scenarioValue: base + labour * 0.1 },
     ];
-  }, [calculationResult, adjustedGrandTotal]);
+  }, [calculationResult]);
 
   const specScenarioData = useMemo(() => {
     if (!calculationResult) return [];
-    const base = adjustedGrandTotal;
+    const base = calculationResult.grandTotal;
     const matLabour = calculationResult.totalMaterialCost + calculationResult.totalLabourCost;
     return [
       { scenario: '+10% Diameter', baseValue: base, scenarioValue: base + matLabour * 0.08 },
       { scenario: '+10% Height', baseValue: base, scenarioValue: base + matLabour * 0.1 },
       { scenario: '+10% Thickness', baseValue: base, scenarioValue: base + matLabour * 0.1 },
     ];
-  }, [calculationResult, adjustedGrandTotal]);
+  }, [calculationResult]);
 
   const pieData = useMemo(() => {
     if (!calculationResult) return [];
@@ -119,13 +95,13 @@ export default function AirReceiverOutputPage() {
       'MS Material': cb['MS Plate'] || 0,
       'Labour': (cb['SS Labour'] || 0) + (cb['MS Labour'] || 0),
       'Services': (cb['Dish Pressing'] || 0) + (cb['Machine Charges'] || 0),
-      'Overhead & Profit': (cb['Overhead'] || 0) + adjustedProfitCost,
+      'Overhead & Profit': (cb['Overhead'] || 0) + calculationResult.profitCost,
       'Other': (cb['Hardware'] || 0) + (cb['Painting'] || 0) + (cb['Local Transport'] || 0),
     };
     return Object.entries(groups)
       .filter(([, v]) => v > 0)
       .map(([name, value]) => ({ name, value: Math.round(value) }));
-  }, [calculationResult, adjustedProfitCost]);
+  }, [calculationResult]);
 
   const handleExportPDF = async () => {
     setExporting(true);
@@ -151,7 +127,7 @@ export default function AirReceiverOutputPage() {
     { label: 'Material Cost', value: formatCurrency(calculationResult.totalMaterialCost) },
     { label: 'Labour Cost', value: formatCurrency(calculationResult.totalLabourCost) },
     { label: 'Overhead', value: formatCurrency(calculationResult.overheadCost) },
-    { label: 'Grand Total', value: formatCurrency(adjustedGrandTotal), highlight: true },
+    { label: 'Grand Total', value: formatCurrency(calculationResult.grandTotal), highlight: true },
   ];
 
   return (
@@ -182,31 +158,7 @@ export default function AirReceiverOutputPage() {
         </Box>
       </Box>
 
-      {/* Profit Modifier Slider */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, minWidth: 160 }}>
-            Profit Adjustment
-          </Typography>
-          <Chip label={`${profitPercent}% Profit`} color="success" size="small" />
-        </Box>
-        <Box sx={{ px: 2 }}>
-          <Slider
-            value={profitPercent}
-            onChange={(_, val) => setProfitPercent(val as number)}
-            min={20}
-            max={40}
-            step={5}
-            marks={profitMarks}
-            valueLabelDisplay="auto"
-            valueLabelFormat={(v) => `${v}%`}
-            sx={{ color: '#388e3c' }}
-          />
-        </Box>
-        <Typography variant="caption" color="text.secondary">
-          Adjust profit percentage to see updated Grand Total (frontend recalculation, no API call required)
-        </Typography>
-      </Paper>
+      {/* Profit Modifier Slider removed — profit is fixed from backend calculation */}
 
       {/* Summary cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -263,12 +215,12 @@ export default function AirReceiverOutputPage() {
                     </TableRow>
                   ))}
                 <TableRow hover>
-                  <TableCell>Profit ({profitPercent}%)</TableCell>
-                  <TableCell align="right">{formatCurrency(adjustedProfitCost)}</TableCell>
+                  <TableCell>Profit</TableCell>
+                  <TableCell align="right">{formatCurrency(calculationResult.profitCost)}</TableCell>
                 </TableRow>
                 <TableRow sx={{ backgroundColor: '#e8f5e9' }}>
                   <TableCell sx={{ fontWeight: 700 }}>GRAND TOTAL</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{formatCurrency(adjustedGrandTotal)}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{formatCurrency(calculationResult.grandTotal)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -386,7 +338,7 @@ export default function AirReceiverOutputPage() {
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Generated: {new Date().toLocaleString()} | Shell: {inputs.Specification.Shell.moc} |
-          Dia: {inputs.Specification.Shell.diameter} mm | Profit: {profitPercent}%
+          Dia: {inputs.Specification.Shell.diameter} mm
         </Typography>
 
         {/* Section 1 */}
@@ -410,12 +362,12 @@ export default function AirReceiverOutputPage() {
                 </TableRow>
               ))}
             <TableRow sx={{ backgroundColor: '#fafafa' }}>
-              <TableCell>Profit ({profitPercent}%)</TableCell>
-              <TableCell align="right">{formatCurrency(adjustedProfitCost)}</TableCell>
+              <TableCell>Profit</TableCell>
+              <TableCell align="right">{formatCurrency(calculationResult.profitCost)}</TableCell>
             </TableRow>
             <TableRow sx={{ backgroundColor: '#e8f5e9' }}>
               <TableCell sx={{ fontWeight: 700 }}>GRAND TOTAL</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700 }}>{formatCurrency(adjustedGrandTotal)}</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>{formatCurrency(calculationResult.grandTotal)}</TableCell>
             </TableRow>
           </TableBody>
         </Table>

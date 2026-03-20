@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -16,8 +16,6 @@ import {
   Alert,
   Card,
   CardContent,
-  Slider,
-  Chip,
 } from '@mui/material';
 import {
   PieChart,
@@ -50,65 +48,41 @@ function TabPanel({ children, value, index }: { children: React.ReactNode; value
   );
 }
 
-const profitMarks = [
-  { value: 0, label: '0%' },
-  { value: 25, label: '25%' },
-  { value: 50, label: '50%' },
-];
-
 export default function ReactorOutputPage() {
   const { calculationResult, assumptions, inputs } = useReactor();
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
   const [exporting, setExporting] = useState(false);
-  const [profitPercent, setProfitPercent] = useState<number>(assumptions.profitPercent);
-  const pieChartRef = useRef<HTMLDivElement>(null);
-  const lineChartRef = useRef<HTMLDivElement>(null);
-
-  // Compute adjusted grand total based on profit slider (frontend only, no API call)
-  const adjustedGrandTotal = useMemo(() => {
-    if (!calculationResult) return 0;
-    // profitBase = fabricationCost + overhead = grandTotal - originalProfit
-    const profitBase = calculationResult.grandTotal - calculationResult.profitCost;
-    const newProfit = (profitBase * profitPercent) / 100;
-    return profitBase + newProfit;
-  }, [calculationResult, profitPercent]);
-
-  const adjustedProfitCost = useMemo(() => {
-    if (!calculationResult) return 0;
-    const profitBase = calculationResult.grandTotal - calculationResult.profitCost;
-    return (profitBase * profitPercent) / 100;
-  }, [calculationResult, profitPercent]);
 
   const costForecastData = useMemo(() => {
     if (!calculationResult) return [];
     return Array.from({ length: 6 }, (_, year) => ({
       year: `Year ${year}`,
-      cost: Math.round(adjustedGrandTotal * Math.pow(1 + assumptions.annualInflationRate / 100, year)),
+      cost: Math.round(calculationResult.grandTotal * Math.pow(1 + assumptions.annualInflationRate / 100, year)),
     }));
-  }, [adjustedGrandTotal, assumptions, calculationResult]);
+  }, [calculationResult, assumptions]);
 
   const commodityScenarioData = useMemo(() => {
     if (!calculationResult) return [];
-    const base = adjustedGrandTotal;
+    const base = calculationResult.grandTotal;
     const cb = calculationResult.costBreakdown;
     return [
       { scenario: '+10% SS304', baseValue: base, scenarioValue: base + ((cb['SS304 Plate'] || 0) + (cb['SS304 Pipe'] || 0)) * 0.1 },
       { scenario: '+10% MS', baseValue: base, scenarioValue: base + ((cb['MS Plate'] || 0) + (cb['MS Pipe'] || 0)) * 0.1 },
       { scenario: '+10% Labour', baseValue: base, scenarioValue: base + ((cb['SS Labour'] || 0) + (cb['MS Labour'] || 0)) * 0.1 },
     ];
-  }, [calculationResult, adjustedGrandTotal]);
+  }, [calculationResult]);
 
   const specScenarioData = useMemo(() => {
     if (!calculationResult) return [];
-    const base = adjustedGrandTotal;
+    const base = calculationResult.grandTotal;
     const materialTotal = calculationResult.totalMaterialCost + calculationResult.totalLabourCost;
     return [
       { scenario: '+10% Shell Dia', baseValue: base, scenarioValue: base + materialTotal * 0.1 * 0.6 },
       { scenario: '+10% Thickness', baseValue: base, scenarioValue: base + materialTotal * 0.1 * 0.3 },
       { scenario: '+10% Height', baseValue: base, scenarioValue: base + materialTotal * 0.1 * 0.4 },
     ];
-  }, [calculationResult, adjustedGrandTotal]);
+  }, [calculationResult]);
 
   const pieData = useMemo(() => {
     if (!calculationResult) return [];
@@ -130,7 +104,7 @@ export default function ReactorOutputPage() {
         (cb['Agitator Assembly'] || 0) +
         (cb['Mirror Finish'] || 0) +
         (cb['Acid Cleaning'] || 0),
-      'Overhead & Profit': (cb['Overhead'] || 0) + adjustedProfitCost,
+      'Overhead & Profit': (cb['Overhead'] || 0) + calculationResult.profitCost,
       Other:
         (cb['Hardware'] || 0) +
         (cb['Consumables'] || 0) +
@@ -142,31 +116,11 @@ export default function ReactorOutputPage() {
     return Object.entries(groups)
       .filter(([, v]) => v > 0)
       .map(([name, value]) => ({ name, value: Math.round(value) }));
-  }, [calculationResult, adjustedProfitCost]);
+  }, [calculationResult]);
 
   const handleExportPDF = async () => {
     setExporting(true);
-    // Load html2canvas once for both captures
-    const html2canvas = (await import('html2canvas')).default;
-    // Allow DOM to settle before capturing charts
-    const CHART_CAPTURE_DELAY_MS = 200;
     try {
-      // Capture pie chart as image
-      if (pieChartRef.current) {
-        const canvas = await html2canvas(pieChartRef.current, { scale: 2, useCORS: true, logging: false });
-        const imgSrc = canvas.toDataURL('image/png');
-        const pieImg = document.getElementById('pdf-pie-chart-img') as HTMLImageElement | null;
-        if (pieImg) pieImg.src = imgSrc;
-      }
-      // Capture line chart as image
-      if (lineChartRef.current) {
-        const canvas = await html2canvas(lineChartRef.current, { scale: 2, useCORS: true, logging: false });
-        const imgSrc = canvas.toDataURL('image/png');
-        const lineImg = document.getElementById('pdf-line-chart-img') as HTMLImageElement | null;
-        if (lineImg) lineImg.src = imgSrc;
-      }
-      // Brief wait for the <img> src assignments to propagate before PDF generation
-      await new Promise((resolve) => setTimeout(resolve, CHART_CAPTURE_DELAY_MS));
       await exportUnifiedPDF('reactor-pdf-export', 'Reactor-Cost-Analysis.pdf');
     } finally {
       setExporting(false);
@@ -190,7 +144,7 @@ export default function ReactorOutputPage() {
     { label: 'Material Cost', value: formatCurrency(calculationResult.totalMaterialCost), bgcolor: '#E3F2FD', accent: '#1976d2' },
     { label: 'Labour Cost', value: formatCurrency(calculationResult.totalLabourCost), bgcolor: '#E8F5E9', accent: '#388e3c' },
     { label: 'Overhead', value: formatCurrency(calculationResult.overheadCost), bgcolor: '#FFF3E0', accent: '#f57c00' },
-    { label: 'Grand Total', value: formatCurrency(adjustedGrandTotal), highlight: true, bgcolor: '#F3E5F5', accent: '#7b1fa2' },
+    { label: 'Grand Total', value: formatCurrency(calculationResult.grandTotal), highlight: true, bgcolor: '#F3E5F5', accent: '#7b1fa2' },
   ];
 
   return (
@@ -221,7 +175,7 @@ export default function ReactorOutputPage() {
         </Box>
       </Box>
 
-      {/* Summary cards + Profit Slider in one responsive grid */}
+      {/* Summary cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         {summaryCards.map(({ label, value, highlight, bgcolor, accent }) => (
           <Grid item xs={12} sm={6} md={3} key={label}>
@@ -243,31 +197,6 @@ export default function ReactorOutputPage() {
             </Card>
           </Grid>
         ))}
-
-        {/* Profit Slider — same size as a KPI card */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: '#FFFDE7', borderLeft: '4px solid #FBC02D', height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                  Profit %
-                </Typography>
-                <Chip label={`${profitPercent}%`} size="small" sx={{ bgcolor: '#FBC02D', color: 'white', fontWeight: 700 }} />
-              </Box>
-              <Slider
-                value={profitPercent}
-                onChange={(_, val) => setProfitPercent(val as number)}
-                min={0}
-                max={50}
-                step={5}
-                marks={profitMarks}
-                valueLabelDisplay="auto"
-                valueLabelFormat={(v) => `${v}%`}
-                sx={{ color: '#FBC02D', mt: 1 }}
-              />
-            </CardContent>
-          </Card>
-        </Grid>
       </Grid>
 
       {/* Tabs */}
@@ -309,13 +238,13 @@ export default function ReactorOutputPage() {
                     </TableRow>
                   ))}
                 <TableRow hover>
-                  <TableCell>Profit ({profitPercent}%)</TableCell>
-                  <TableCell align="right">{formatCurrency(adjustedProfitCost)}</TableCell>
+                  <TableCell>Profit</TableCell>
+                  <TableCell align="right">{formatCurrency(calculationResult.profitCost)}</TableCell>
                 </TableRow>
                 <TableRow sx={{ backgroundColor: '#e3f2fd' }}>
                   <TableCell sx={{ fontWeight: 700 }}>GRAND TOTAL</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700 }}>
-                    {formatCurrency(adjustedGrandTotal)}
+                    {formatCurrency(calculationResult.grandTotal)}
                   </TableCell>
                 </TableRow>
               </TableBody>
@@ -327,7 +256,7 @@ export default function ReactorOutputPage() {
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
               Cost Distribution
             </Typography>
-            <div ref={pieChartRef}>
+            <div>
               <ResponsiveContainer width="100%" height={400}>
                 <PieChart>
                   <Pie
@@ -354,7 +283,7 @@ export default function ReactorOutputPage() {
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
               5-Year Cost Forecast ({assumptions.annualInflationRate}% annual inflation)
             </Typography>
-            <div ref={lineChartRef}>
+            <div>
               <ResponsiveContainer width="100%" height={350}>
                 <LineChart data={costForecastData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -462,7 +391,7 @@ export default function ReactorOutputPage() {
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Generated: {new Date().toLocaleString()} | Shell: {inputs.Specification.Shell.moc} |
-          Dia: {inputs.Specification.Shell.diameter} mm | Profit: {profitPercent}%
+          Dia: {inputs.Specification.Shell.diameter} mm
         </Typography>
 
         {/* Section 1 */}
@@ -486,12 +415,12 @@ export default function ReactorOutputPage() {
                 </TableRow>
               ))}
             <TableRow sx={{ backgroundColor: '#fafafa' }}>
-              <TableCell>Profit ({profitPercent}%)</TableCell>
-              <TableCell align="right">{formatCurrency(adjustedProfitCost)}</TableCell>
+              <TableCell>Profit</TableCell>
+              <TableCell align="right">{formatCurrency(calculationResult.profitCost)}</TableCell>
             </TableRow>
             <TableRow sx={{ backgroundColor: '#e3f2fd' }}>
               <TableCell sx={{ fontWeight: 700 }}>GRAND TOTAL</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700 }}>{formatCurrency(adjustedGrandTotal)}</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>{formatCurrency(calculationResult.grandTotal)}</TableCell>
             </TableRow>
           </TableBody>
         </Table>
@@ -516,8 +445,6 @@ export default function ReactorOutputPage() {
             ))}
           </TableBody>
         </Table>
-        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Cost Distribution Chart</Typography>
-        <img id="pdf-pie-chart-img" alt="Cost distribution by category" style={{ maxWidth: '100%', display: 'block' }} />
 
         {/* Section 3 */}
         <Typography variant="h5" sx={{ mt: 4, mb: 1, fontWeight: 700, color: '#1976d2', borderBottom: '2px solid #1976d2', pb: 0.5 }}>
@@ -539,8 +466,6 @@ export default function ReactorOutputPage() {
             ))}
           </TableBody>
         </Table>
-        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>5-Year Cost Forecast Chart</Typography>
-        <img id="pdf-line-chart-img" alt="5-year cost forecast projection" style={{ maxWidth: '100%', display: 'block' }} />
 
         {/* Section 4 */}
         <Typography variant="h5" sx={{ mt: 4, mb: 1, fontWeight: 700, color: '#1976d2', borderBottom: '2px solid #1976d2', pb: 0.5 }}>
