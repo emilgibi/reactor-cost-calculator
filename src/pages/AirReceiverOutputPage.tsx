@@ -40,6 +40,7 @@ import {
   transformForecastResponse,
   getLocalForecast,
   ForecastDataPoint,
+  type MaterialInfo
 } from '../utils/api';
 
 const COLORS = ['#388e3c', '#1976d2', '#dc004e', '#f57c00', '#7b1fa2', '#0097a7'];
@@ -62,6 +63,7 @@ export default function AirReceiverOutputPage() {
   const [tabValue, setTabValue] = useState(0);
   const [exporting, setExporting] = useState(false);
   const [costForecastData, setCostForecastData] = useState<ForecastDataPoint[]>([]);
+  const [materialInfo, setMaterialInfo] = useState<MaterialInfo | null>(null);
   const [forecastLoading, setForecastLoading] = useState(false);
   const [forecastError, setForecastError] = useState<string | null>(null);
 
@@ -79,6 +81,12 @@ export default function AirReceiverOutputPage() {
       if (cancelled) return;
       if (response) {
         setCostForecastData(transformForecastResponse(response));
+        setMaterialInfo({
+          material_type: response.material_type,
+          material_name: response.material_name,
+          current_wpi: response.current_wpi,
+          base_cost: response.base_cost,
+        });
       } else {
         setCostForecastData(getLocalForecast(baseCost, assumptions.annualInflationRate));
         setForecastError('Backend unavailable – showing estimated forecast based on fixed inflation rate.');
@@ -267,9 +275,16 @@ export default function AirReceiverOutputPage() {
           </TabPanel>
 
           <TabPanel value={tabValue} index={2}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-              5-Year Cost Forecast (WPI-based ML prediction)
+            <Typography variant="h6" sx={{ mb: 0.5, fontWeight: 600 }}>
+              5-Year Cost Forecast {materialInfo ? `(WPI-based ML prediction for ${materialInfo.material_name})` : '(WPI-based ML prediction)'}
             </Typography>
+            {materialInfo && (
+              <Typography variant="body2" sx={{ mb: 2, color: '#666' }}>
+                Base Cost: ₹{(materialInfo.base_cost / 100000).toFixed(2)}L | 
+                Material: {materialInfo.material_type} | 
+                Current WPI: {materialInfo.current_wpi.toFixed(2)}
+              </Typography>
+            )}
             {forecastError && (
               <Alert severity="warning" sx={{ mb: 2 }}>
                 {forecastError}

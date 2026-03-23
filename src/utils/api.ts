@@ -7,8 +7,13 @@ export interface ForecastItem {
   costChange: number;
 }
 
+// ✅ UPDATED: Add material_type, material_name, and current_wpi
 export interface ForecastResponse {
-  material: string;
+  success: boolean;
+  material_type: string;
+  material_name: string;
+  current_wpi: number;
+  base_cost: number;
   forecast: ForecastItem[];
 }
 
@@ -17,6 +22,13 @@ export interface ForecastDataPoint {
   cost: number;
   wpiIndex?: number;
   costChange?: number;
+}
+
+export interface MaterialInfo {
+  material_type: string;
+  material_name: string;
+  current_wpi: number;
+  base_cost: number;
 }
 
 /**
