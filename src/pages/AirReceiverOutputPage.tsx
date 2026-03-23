@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -16,6 +16,8 @@ import {
   Alert,
   Card,
   CardContent,
+  CircularProgress,
+  Skeleton,
 } from '@mui/material';
 import {
   PieChart,
@@ -33,6 +35,12 @@ import {
 import { Download as PrintIcon, Edit as EditIcon } from '@mui/icons-material';
 import { useAirReceiver } from '../context/AirReceiverContext';
 import { exportUnifiedPDF } from '../utils/pdfGenerator';
+import {
+  getForecastFromBackend,
+  transformForecastResponse,
+  getLocalForecast,
+  ForecastDataPoint,
+} from '../utils/api';
 
 const COLORS = ['#388e3c', '#1976d2', '#dc004e', '#f57c00', '#7b1fa2', '#0097a7'];
 
@@ -53,14 +61,32 @@ export default function AirReceiverOutputPage() {
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
   const [exporting, setExporting] = useState(false);
+  const [costForecastData, setCostForecastData] = useState<ForecastDataPoint[]>([]);
+  const [forecastLoading, setForecastLoading] = useState(false);
+  const [forecastError, setForecastError] = useState<string | null>(null);
 
-  const costForecastData = useMemo(() => {
-    if (!calculationResult) return [];
-    return Array.from({ length: 6 }, (_, year) => ({
-      year: `Year ${year}`,
-      cost: Math.round(calculationResult.grandTotal * Math.pow(1 + assumptions.annualInflationRate / 100, year)),
-    }));
-  }, [calculationResult, assumptions]);
+  useEffect(() => {
+    if (!calculationResult) {
+      setCostForecastData([]);
+      return;
+    }
+    const materialType = inputs.Specification?.Shell?.moc || 'SS304';
+    const baseCost = calculationResult.grandTotal;
+    let cancelled = false;
+    setForecastLoading(true);
+    setForecastError(null);
+    getForecastFromBackend(baseCost, materialType).then((response) => {
+      if (cancelled) return;
+      if (response) {
+        setCostForecastData(transformForecastResponse(response));
+      } else {
+        setCostForecastData(getLocalForecast(baseCost, assumptions.annualInflationRate));
+        setForecastError('Backend unavailable – showing estimated forecast based on fixed inflation rate.');
+      }
+      setForecastLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [calculationResult, inputs, assumptions.annualInflationRate]);
 
   const commodityScenarioData = useMemo(() => {
     if (!calculationResult) return [];
@@ -242,18 +268,33 @@ export default function AirReceiverOutputPage() {
 
           <TabPanel value={tabValue} index={2}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-              5-Year Cost Forecast ({assumptions.annualInflationRate}% annual inflation)
+              5-Year Cost Forecast (WPI-based ML prediction)
             </Typography>
-            <ResponsiveContainer width="100%" height={350}>
-              <LineChart data={costForecastData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="year" />
-                <YAxis tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`} />
-                <Tooltip formatter={(v) => formatCurrency(Number(v))} />
-                <Legend />
-                <Line type="monotone" dataKey="cost" stroke="#388e3c" strokeWidth={2} dot={{ r: 5 }} name="Projected Cost" />
-              </LineChart>
-            </ResponsiveContainer>
+            {forecastError && (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                {forecastError}
+              </Alert>
+            )}
+            {forecastLoading ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                  <CircularProgress size={20} />
+                  <Typography variant="body2" color="text.secondary">Fetching WPI-based forecast…</Typography>
+                </Box>
+                <Skeleton variant="rectangular" height={350} />
+              </Box>
+            ) : (
+              <ResponsiveContainer width="100%" height={350}>
+                <LineChart data={costForecastData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="year" />
+                  <YAxis tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`} />
+                  <Tooltip formatter={(v) => formatCurrency(Number(v))} />
+                  <Legend />
+                  <Line type="monotone" dataKey="cost" stroke="#388e3c" strokeWidth={2} dot={{ r: 5 }} name="Projected Cost" />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </TabPanel>
 
           {/* Tab 4: Commodity Scenarios – Table */}
