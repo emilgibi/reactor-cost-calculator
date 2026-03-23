@@ -343,10 +343,22 @@ export default function ReactorOutputPage() {
                   <LineChart data={costForecastData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="year" />
-                    <YAxis tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`} />
+                    <YAxis 
+                      tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`}
+                      // ✅ AUTO-SCALE: Calculate domain based on actual data
+                      domain={(() => {
+                        if (!costForecastData.length) return ['dataMin - 5%', 'dataMax + 5%'];
+                        const costs = costForecastData.map(d => d.cost);
+                        const minCost = Math.min(...costs);
+                        const maxCost = Math.max(...costs);
+                        const range = maxCost - minCost;
+                        const padding = range * 0.1; // 10% padding
+                        return [minCost - padding, maxCost + padding];
+                      })()}
+                    />
                     <Tooltip formatter={(v) => formatCurrency(Number(v))} />
                     <Legend />
-                    <Line type="monotone" dataKey="cost" stroke="#1976d2" strokeWidth={2} dot={{ r: 5 }} name="Projected Cost" />
+                    <Line type="monotone" dataKey="cost" stroke="#388e3c" strokeWidth={2} dot={{ r: 5 }} name="Projected Cost" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
