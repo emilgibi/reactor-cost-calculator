@@ -245,9 +245,7 @@ export function AirReceiverProvider({ children }: { children: React.ReactNode })
   );
 }
 
-const [calculationResult, setCalculationResult] = useState<AirReceiverCalculationResult | null>(null);
-
-export function useAirReceiver() {
+export function useAirReceiver(): AirReceiverContextType {
   const context = useContext(AirReceiverContext);
   if (!context) {
     throw new Error('useAirReceiver must be used within AirReceiverProvider');
