@@ -22,7 +22,7 @@ export interface ReactorSpecification {
     diameter: number;
   };
   Blade: {
-    type: 'Gate anchor' | 'Turbine';
+    type: 'Gate Anchor' | 'Turbine';
   };
   Limpet: {
     od_diameter: number;

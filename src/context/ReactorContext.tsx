@@ -87,7 +87,7 @@ export const defaultInputs: ReactorFormInput = {
       diameter: 75,
     },
     Blade: {
-      type: 'Gate anchor',
+      type: 'Gate Anchor',
     },
     Limpet: {
       od_diameter: 90,
