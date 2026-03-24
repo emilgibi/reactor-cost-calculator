@@ -36,7 +36,7 @@ import { Download as PrintIcon, Edit as EditIcon } from '@mui/icons-material';
 import { useReactor } from '../context/ReactorContext';
 import { exportUnifiedPDF } from '../utils/pdfGenerator';
 import {
-  getDualMaterialForecastSplit,
+  backendUrl,
   transformYearlyForecast,
   getLocalForecast,
   ForecastDataPoint,
@@ -82,12 +82,14 @@ export default function ReactorOutputPage() {
     const shellMaterial = inputs.Specification?.Shell?.moc || 'SS304';
     const fb = calculationResult.results.fabrication_breakdown;
 
-    // Calculate material costs from fabrication breakdown
+    // Shell material cost: SS304 or MS plates + pipes
     const shellMaterialCost = shellMaterial === 'SS304'
       ? (fb.ss304_plate?.total_cost || 0) + (fb.ss304_pipe?.total_cost || 0)
       : (fb.ms_plate?.total_cost || 0) + (fb.ms_pipe?.total_cost || 0);
 
-    // Limpet coil is always MS — prefer the dedicated limpet line item
+    // Limpet is always MS. When shell is SS304, use dedicated limpet line item if present,
+    // otherwise fall back to ms_plate + ms_pipe (which represent limpet in SS304 reactors).
+    // When shell is MS, limpet shares the same material — avoid double counting by setting to 0.
     const limpetDedicated = fb.limpet?.total_cost || 0;
     const limpetMaterialCost = shellMaterial !== 'MS'
       ? (limpetDedicated > 0
@@ -95,52 +97,92 @@ export default function ReactorOutputPage() {
           : (fb.ms_plate?.total_cost || 0) + (fb.ms_pipe?.total_cost || 0))
       : 0;
 
-    // Guard: if totalMaterialCost is 0, fall back to grand_total to avoid sending 0 to backend
-    const totalMaterialCost = (shellMaterialCost + limpetMaterialCost) > 0
-      ? (shellMaterialCost + limpetMaterialCost)
+    // Effective shell cost for the forecast API — must be > 0
+    const effectiveShellCost = shellMaterialCost > 0
+      ? shellMaterialCost
       : calculationResult.results.summary.grand_total;
 
-    // Effective shell cost: use shell-only if available, otherwise fall back to combined total
-    const effectiveShellCost = shellMaterialCost > 0 ? shellMaterialCost : totalMaterialCost;
+    console.log('[Forecast] Shell cost:', effectiveShellCost, 'Limpet cost:', limpetMaterialCost, 'Material:', shellMaterial);
 
     let cancelled = false;
-
     setForecastLoading(true);
     setForecastError(null);
 
-    // Fetch DUAL material forecast via two independent calls to avoid percentage-split issues
-    getDualMaterialForecastSplit(
-      effectiveShellCost,
-      shellMaterial,
-      limpetMaterialCost,
-    ).then(({ shell, limpet }) => {
-      if (cancelled) return;
-
-      if (shell) {
-        // Transform primary material (Shell)
-        const primaryTransformed = transformYearlyForecast(shell);
-
-        // Transform secondary material (MS Limpet) — only when limpetMaterialCost > 0
-        const secondaryTransformed = (limpetMaterialCost > 0 && limpet)
-          ? transformYearlyForecast(limpet)
-          : [];
-
-        setCostForecastData(primaryTransformed);
-        setCostForecastDataSecondary(secondaryTransformed);
-
-        setMaterialInfo({
-          material_type: shell.material_type,
-          material_name: shell.material_name,
-          current_wpi: shell.current_wpi,
-          base_cost: effectiveShellCost,
+    const fetchForecasts = async () => {
+      try {
+        // Always fetch shell forecast
+        const shellPromise = fetch(`${backendUrl}/api/forecast`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            base_cost: effectiveShellCost,
+            material_type: shellMaterial,
+            include_secondary_material: false,
+            secondary_material_type: 'MS',
+            primary_cost_percentage: 100,
+            secondary_cost_percentage: 0,
+            view_mode: 'yearly',
+            months_ahead: 60,
+          }),
         });
-      } else {
-        setCostForecastData(getLocalForecast(effectiveShellCost, assumptions.annualInflationRate));
-        setForecastError('Backend unavailable – showing estimated forecast.');
-      }
 
-      setForecastLoading(false);
-    });
+        // Only fetch limpet forecast if limpet cost > 0
+        const limpetPromise = limpetMaterialCost > 0
+          ? fetch(`${backendUrl}/api/forecast`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                base_cost: limpetMaterialCost,
+                material_type: 'MS',
+                include_secondary_material: false,
+                secondary_material_type: 'MS',
+                primary_cost_percentage: 100,
+                secondary_cost_percentage: 0,
+                view_mode: 'yearly',
+                months_ahead: 60,
+              }),
+            })
+          : Promise.resolve(null);
+
+        const [shellRes, limpetRes] = await Promise.all([shellPromise, limpetPromise]);
+
+        if (cancelled) return;
+
+        const shellData = shellRes && shellRes.ok ? await shellRes.json() : null;
+        const limpetData = limpetRes && limpetRes.ok ? await limpetRes.json() : null;
+
+        if (shellData?.primary_material) {
+          const primaryTransformed = transformYearlyForecast(shellData.primary_material);
+          const secondaryTransformed = limpetData?.primary_material
+            ? transformYearlyForecast(limpetData.primary_material)
+            : [];
+
+          setCostForecastData(primaryTransformed);
+          setCostForecastDataSecondary(secondaryTransformed);
+
+          setMaterialInfo({
+            material_type: shellData.primary_material.material_type,
+            material_name: shellData.primary_material.material_name,
+            current_wpi: shellData.primary_material.current_wpi,
+            base_cost: effectiveShellCost,
+          });
+        } else {
+          setCostForecastData(getLocalForecast(effectiveShellCost, assumptions.annualInflationRate));
+          setForecastError('Backend unavailable – showing estimated forecast.');
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setCostForecastData(getLocalForecast(effectiveShellCost, assumptions.annualInflationRate));
+          setForecastError('Backend unavailable – showing estimated forecast.');
+        }
+      } finally {
+        if (!cancelled) {
+          setForecastLoading(false);
+        }
+      }
+    };
+
+    fetchForecasts();
 
     return () => {
       cancelled = true;
