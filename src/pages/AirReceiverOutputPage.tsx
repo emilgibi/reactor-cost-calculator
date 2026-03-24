@@ -132,8 +132,20 @@ export default function AirReceiverOutputPage() {
 
   const commodityScenarioData = useMemo(() => {
     if (!calculationResult) return [];
-    const fb = calculationResult.fabrication_breakdown;
     const base = calculationResult.summary.grand_total;
+
+    // Use backend cost_variation if available
+    const cv = calculationResult.cost_variation;
+    if (cv && Object.keys(cv).length > 0) {
+      return Object.entries(cv).map(([scenario, data]: [string, any]) => ({
+        scenario,
+        baseValue: base,
+        scenarioValue: data.cost || base,
+      }));
+    }
+
+    // Fallback to local estimation
+    const fb = calculationResult.fabrication_breakdown;
     const ss304 = (fb['ss304_plate']?.total_cost || 0);
     const ms = (fb['ms_plate']?.total_cost || 0);
     const labour = (fb['ss_labour']?.total_cost || 0) + (fb['ms_labour']?.total_cost || 0);
@@ -146,8 +158,20 @@ export default function AirReceiverOutputPage() {
 
   const specScenarioData = useMemo(() => {
     if (!calculationResult) return [];
-    const fb = calculationResult.fabrication_breakdown;
     const base = calculationResult.summary.grand_total;
+
+    // Use backend measurement_variation if available
+    const mv = calculationResult.measurement_variation;
+    if (mv && Object.keys(mv).length > 0) {
+      return Object.entries(mv).map(([scenario, data]: [string, any]) => ({
+        scenario,
+        baseValue: base,
+        scenarioValue: data.cost || base,
+      }));
+    }
+
+    // Fallback to local estimation
+    const fb = calculationResult.fabrication_breakdown;
     const matLabour =
       (fb['ss304_plate']?.total_cost || 0) + (fb['ms_plate']?.total_cost || 0) +
       (fb['ss_labour']?.total_cost || 0) + (fb['ms_labour']?.total_cost || 0);

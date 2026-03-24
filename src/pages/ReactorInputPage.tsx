@@ -164,7 +164,96 @@ export default function ReactorInputPage() {
       const result = await response.json();
       
       if (result.success) {
-        setCalculationResult(result);
+        const raw = result.results;
+
+        // Map backend name keys to human-readable descriptions
+        const nameToDescription: Record<string, string> = {
+          ss304_plate: 'SS304 Plate',
+          ss304_pipe: 'SS304 Pipe',
+          ss316_plate: 'SS316 Plate',
+          ss316_pipe: 'SS316 Pipe',
+          ms_plate: 'MS Plate',
+          ms_pipe: 'MS Pipe',
+          ss_labour: 'SS Labour',
+          ms_labour: 'MS Labour',
+          limpet: 'Limpet',
+          consumable: 'Consumables',
+          hard_ware: 'Hardware',
+          hardware: 'Hardware',
+          brought_out: 'Brought Out Components',
+          dish_pressing: 'Dish Pressing',
+          machine_charges: 'Machine Charges',
+          MC_charge: 'Machine Charges',
+          agitator_assembly: 'Agitator Assembly',
+          Agitator_assembly: 'Agitator Assembly',
+          acid_cleaning: 'Acid Cleaning',
+          'Acid Cleaning': 'Acid Cleaning',
+          mirror_finish: 'Mirror Finish',
+          painting: 'Painting',
+          local_transport: 'Local Transport',
+        };
+
+        // Build fabrication_breakdown from cost_breakup array
+        const fabrication_breakdown: any = {};
+        if (Array.isArray(raw.cost_breakup)) {
+          for (const item of raw.cost_breakup) {
+            const key = item.name;
+            let normalizedKey = key;
+            if (key === 'hard_ware') normalizedKey = 'hardware';
+            if (key === 'MC_charge') normalizedKey = 'machine_charges';
+            if (key === 'Agitator_assembly') normalizedKey = 'agitator_assembly';
+            if (key === 'Acid Cleaning') normalizedKey = 'acid_cleaning';
+            fabrication_breakdown[normalizedKey] = {
+              description: nameToDescription[key] || key,
+              unit_rate: item.unit_cost ?? null,
+              quantity: item.quantity ?? null,
+              unit_type: item.quantity != null ? 'kg' : null,
+              total_cost: item.cost || 0,
+            };
+          }
+        }
+
+        // Ensure all expected keys exist with zero defaults
+        const expectedKeys = [
+          'ss304_plate', 'ss304_pipe', 'ms_plate', 'ms_pipe',
+          'ss_labour', 'ms_labour', 'limpet', 'consumable',
+          'hardware', 'brought_out', 'dish_pressing', 'machine_charges',
+          'agitator_assembly', 'acid_cleaning', 'mirror_finish',
+          'painting', 'local_transport',
+        ];
+        for (const k of expectedKeys) {
+          if (!fabrication_breakdown[k]) {
+            fabrication_breakdown[k] = {
+              description: nameToDescription[k] || k,
+              unit_rate: null,
+              quantity: null,
+              unit_type: null,
+              total_cost: 0,
+            };
+          }
+        }
+
+        // Build summary
+        const summary = {
+          fabrication_cost: raw.fabrication_cost || 0,
+          overhead_percentage: assumptions.overheadPercent,
+          overhead_amount: raw.overhead || 0,
+          profit_percentage: assumptions.profitPercent,
+          profit_amount: raw.profit || 0,
+          grand_total: raw.grand_total || 0,
+        };
+
+        setCalculationResult({
+          success: true,
+          message: result.message,
+          results: {
+            fabrication_breakdown,
+            summary,
+            measurement_variation: raw.measurement_variation,
+            cost_variation: raw.cost_variation,
+            category_breakup: raw.category_breakup,
+          },
+        });
         navigate('/reactor/output');
       } else {
         setError(result.error && typeof result.error === 'string' ? result.error : result.error ? JSON.stringify(result.error) : 'Calculation failed');
