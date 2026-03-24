@@ -370,9 +370,9 @@ export default function ReactorOutputPage() {
             </Box>
             {materialInfo && (
               <Typography variant="body2" sx={{ mb: 2, color: '#666' }}>
-                Base Cost: ₹{(materialInfo.base_cost / 100000).toFixed(2)}L | 
+                Base Cost: ₹{((materialInfo.base_cost ?? 0) / 100000).toFixed(2)}L | 
                 Material: {materialInfo.material_type} | 
-                Current WPI: {materialInfo.current_wpi.toFixed(2)}
+                Current WPI: {(materialInfo.current_wpi ?? 0).toFixed(2)}
               </Typography>
             )}
             {forecastError && (
