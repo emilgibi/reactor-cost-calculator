@@ -94,6 +94,7 @@ export default function ReactorInputPage() {
           },
           Blade: { type: s.Blade.type },
           Limpet: {
+            moc: 'MS',
             od: s.Limpet.od_diameter,
             pitch: s.Limpet.pitch_diameter,
           },
@@ -108,8 +109,8 @@ export default function ReactorInputPage() {
             MS_Pipe: assumptions.msPipeCost,
           },
           LabourCosts: {
-            SS304_Labour: assumptions.ssLabourCost,
-            MS_Labour: assumptions.msLabourCost,
+            ssLabourCost: assumptions.ssLabourCost,
+            msLabourCost: assumptions.msLabourCost,
           },
           DensityValues: {
             SS304: assumptions.ss304Density,
@@ -187,7 +188,7 @@ export default function ReactorInputPage() {
   const restrictedMocOptions = ['SS304', 'SS316'];
   const sealTypes = ['Single', 'Double', 'Gland'] as const;
   const motorTypes = ['Flameproof', 'Non-Flameproof'] as const;
-  const bladeTypes = ['Gate anchor', 'Turbine'] as const;
+  const bladeTypes = ['Gate Anchor', 'Turbine'] as const;
   const finishTypes = ['Mirror', 'Normal'] as const;
 
   return (
