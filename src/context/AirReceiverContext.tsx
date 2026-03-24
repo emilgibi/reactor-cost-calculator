@@ -43,6 +43,7 @@ interface AirReceiverContextType {
   updateInputs: (newInputs: Partial<AirReceiverFormInput>) => void;
   updateAssumptions: (newAssumptions: Partial<AirReceiverAssumptions>) => void;
   calculateCosts: () => void;
+  setCalculationResult: (result: AirReceiverCalculationResult | null) => void;
   saveConfiguration: (name: string) => void;
   loadConfiguration: (name: string) => void;
   getSavedConfigurations: () => string[];
@@ -69,41 +70,53 @@ export const defaultInputs: AirReceiverFormInput = {
       type: 'External',
     },
   },
+  NozzleSchedule: {
+    NB_25: { count: 4 },
+    NB_40: { count: 3 },
+    NB_50: { count: 3 },
+    NB_80: { count: 2 },
+    NB_100: { count: 0 },
+    NB_150: { count: 0 },
+    NB_600: { count: 1 },
+  },
   capacity: 20,
   designPressure: 10,
   testPressure: 15,
 };
 
 export const defaultAssumptions: AirReceiverAssumptions = {
+  // Material Costs
   ss304PlateCost: 210,
-  msPlateCost: 65,
   ss304PipeCost: 350,
-  msPipeCost: 120,
+  msPlateCost: 80,           // ✅ ADD THIS
+  msPipeCost: 120,           // ✅ ADD THIS
+  
+  // Labour Costs
   ssLabourCost: 28,
-  msLabourCost: 17,
+  msLabourCost: 30,
+  
+  // Density Values
   ss304Density: 8,
   msDensity: 7.86,
-  dishPressingCost: 20,
-  machineCharges: 30000,
-  paintingCost: 3000,
-  localTransportCost: 20000,
-  hardwareCost: 5000,
+  
+  // Other Costs
+  dishPressingPerSqm: 20,    // ✅ ADD THIS
+  machineCharges: 0,
+  paintingCost: 25000,
+  localTransportCost: 35000,
+  hardwareCost: 2500,
+  testingCost: 30000,        // ✅ ADD THIS
+  
+  // Financial Percentages
   overheadPercent: 10,
-  profitPercent: 30,
+  profitPercent: 15,
   annualInflationRate: 5,
 };
 
 const AirReceiverContext = createContext<AirReceiverContextType | undefined>(undefined);
 
 export function AirReceiverProvider({ children }: { children: React.ReactNode }) {
-  const [inputs, setInputs] = useState<AirReceiverFormInput>(() => {
-    try {
-      const saved = localStorage.getItem('airreceiver_current_inputs');
-      return saved ? JSON.parse(saved) : defaultInputs;
-    } catch {
-      return defaultInputs;
-    }
-  });
+  const [inputs, setInputs] = useState<AirReceiverFormInput>(defaultInputs);
   const [assumptions, setAssumptions] = useState<AirReceiverAssumptions>(defaultAssumptions);
   const [calculationResult, setCalculationResult] = useState<AirReceiverCalculationResult | null>(null);
 
@@ -152,7 +165,7 @@ export function AirReceiverProvider({ children }: { children: React.ReactNode })
       costBreakdown['MS Labour'] = labourTotal;
     }
 
-    const dishPressingTotal = assumptions.dishPressingCost * dishWeight;
+    const dishPressingTotal = assumptions.dishPressingPerSqm * dishWeight;
     costBreakdown['Dish Pressing'] = dishPressingTotal;
     costBreakdown['Machine Charges'] = assumptions.machineCharges;
     costBreakdown['Hardware'] = assumptions.hardwareCost;
@@ -221,6 +234,7 @@ export function AirReceiverProvider({ children }: { children: React.ReactNode })
         updateInputs,
         updateAssumptions,
         calculateCosts,
+        setCalculationResult,
         saveConfiguration,
         loadConfiguration,
         getSavedConfigurations,
@@ -230,6 +244,8 @@ export function AirReceiverProvider({ children }: { children: React.ReactNode })
     </AirReceiverContext.Provider>
   );
 }
+
+const [calculationResult, setCalculationResult] = useState<AirReceiverCalculationResult | null>(null);
 
 export function useAirReceiver() {
   const context = useContext(AirReceiverContext);

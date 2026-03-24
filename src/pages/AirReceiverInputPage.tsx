@@ -31,9 +31,12 @@ export default function AirReceiverInputPage() {
   const { inputs, updateInputs, calculateCosts, saveConfiguration, loadConfiguration, getSavedConfigurations } =
     useAirReceiver();
   const navigate = useNavigate();
+  const {assumptions, setCalculationResult } = useAirReceiver();
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [loadDialogOpen, setLoadDialogOpen] = useState(false);
   const [configName, setConfigName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorPage, setErrorPage] = useState<string | null>(null);
 
   const spec = inputs.Specification;
 
@@ -41,10 +44,93 @@ export default function AirReceiverInputPage() {
     updateInputs({ Specification: { ...spec, ...partial } });
   };
 
-  const handleCalculate = () => {
-    calculateCosts();
-    navigate('/air-receiver/output');
-  };
+    const handleCalculate = async () => {
+      try {
+        setLoading(true);
+        setErrorPage(null);
+        
+        const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+        
+        const payload = {
+          Specification: {
+            Shell: {
+              moc: inputs.Specification?.Shell?.moc || 'CS',
+              diameter: inputs.Specification?.Shell?.diameter || 2200,
+              height: inputs.Specification?.Shell?.height || 4500,
+              thickness: inputs.Specification?.Shell?.thickness || 12,
+            },
+            Dish: {
+              moc: inputs.Specification?.Dish?.moc || 'CS',
+              diameter: inputs.Specification?.Dish?.diameter || 2200,
+              thickness: inputs.Specification?.Dish?.thickness || 8,
+            },
+            Finish: {
+              type: inputs.Specification?.Finish?.type || 'Painting',
+            },
+          },
+          NozzleSchedule: {
+            NB_25: { count: inputs.NozzleSchedule?.NB_25?.count || 0 },
+            NB_40: { count: inputs.NozzleSchedule?.NB_40?.count || 0 },
+            NB_50: { count: inputs.NozzleSchedule?.NB_50?.count || 0 },
+            NB_80: { count: inputs.NozzleSchedule?.NB_80?.count || 0 },
+            NB_100: { count: inputs.NozzleSchedule?.NB_100?.count || 0 },
+            NB_150: { count: inputs.NozzleSchedule?.NB_150?.count || 0 },
+            NB_600: { count: inputs.NozzleSchedule?.NB_600?.count || 0 },
+          },
+          Assumptions: {
+            MaterialCosts: {
+              msPlateCost: assumptions.msPlateCost || 80,
+              msPipeCost: assumptions.msPipeCost || 120,
+            },
+            LabourCosts: {
+              msLabourCost: assumptions.msLabourCost || 30,
+            },
+            DensityValues: {
+              msDensity: assumptions.msDensity || 7.86,
+            },
+            FinancialPercentages: {
+              overhead: assumptions.overheadPercent || 10,
+              profit: assumptions.profitPercent || 15,
+              inflationRate: assumptions.annualInflationRate || 5,
+            },
+            OtherCosts: {
+              dishPressingPerSqm: assumptions.dishPressingPerSqm || 20,
+              testing: assumptions.testingCost || 30000,
+              machineCharges: assumptions.machineCharges || 0,
+              paintingLumpsum: assumptions.paintingCost || 25000,
+              localTransportLumpsum: assumptions.localTransportCost || 35000,
+              hardwareLumpsum: assumptions.hardwareCost || 2500,
+            },
+          },
+        };
+
+        const response = await fetch(`${backendUrl}/api/air-receiver-calculation`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          setErrorPage('Calculation failed. Please check your inputs.');
+          setLoading(false);
+          return;
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+          setCalculationResult(result.results);
+          navigate('/air-receiver/output');
+        } else {
+          setErrorPage(result.error || 'Calculation failed');
+        }
+      } catch (err: any) {
+        setErrorPage('Error: ' + (err.message || 'Unknown error'));
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
   const handleSave = () => {
     if (configName.trim()) {
@@ -286,15 +372,11 @@ export default function AirReceiverInputPage() {
       <Box sx={{ display: 'flex', gap: 2 }}>
         <Button
           variant="contained"
-          size="large"
-          startIcon={<CalculateIcon />}
           onClick={handleCalculate}
-          sx={{ px: 4, background: 'linear-gradient(135deg, #388e3c, #1b5e20)', '&:hover': { opacity: 0.9 } }}
+          disabled={loading}
+          sx={{ background: 'linear-gradient(135deg, #388e3c, #1b5e20)' }}
         >
-          Calculate Costs
-        </Button>
-        <Button variant="outlined" size="large" onClick={() => setSaveDialogOpen(true)}>
-          Save Configuration
+          {loading ? 'Calculating...' : 'Calculate Costs'}
         </Button>
       </Box>
 

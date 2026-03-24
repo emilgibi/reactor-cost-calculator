@@ -37,10 +37,13 @@ import { useReactor } from '../context/ReactorContext';
 import { exportUnifiedPDF } from '../utils/pdfGenerator';
 import {
   getForecastFromBackend,
-  transformForecastResponse,
+  getDualMaterialForecast,
+  transformYearlyForecast,
+  transformMonthlyForecast,
   getLocalForecast,
   ForecastDataPoint,
-  type MaterialInfo
+  type MaterialInfo,
+  type DualMaterialForecastResponse,
 } from '../utils/api';
 
 const COLORS = ['#1976d2', '#dc004e', '#388e3c', '#f57c00', '#7b1fa2', '#0097a7', '#c62828', '#1565c0'];
@@ -66,35 +69,69 @@ export default function ReactorOutputPage() {
   const [materialInfo, setMaterialInfo] = useState<MaterialInfo | null>(null);
   const [forecastLoading, setForecastLoading] = useState(false);
   const [forecastError, setForecastError] = useState<string | null>(null);
+  const [forecastViewMode, setForecastViewMode] = useState<'monthly' | 'yearly'>('yearly');
+  const [costForecastDataSecondary, setCostForecastDataSecondary] = useState<ForecastDataPoint[]>([]);
 
+  // For Reactor with Shell + MS Limpet
   useEffect(() => {
     if (!calculationResult) {
       setCostForecastData([]);
+      setCostForecastDataSecondary([]);
       return;
     }
-    const materialType = inputs.Specification?.Shell?.moc || 'SS304';
+
+    const shellMaterial = inputs.Specification?.Shell?.moc || 'SS304';
     const baseCost = calculationResult.grandTotal;
     let cancelled = false;
+
     setForecastLoading(true);
     setForecastError(null);
-    getForecastFromBackend(baseCost, materialType).then((response) => {
+
+    // Fetch DUAL material forecast
+    getDualMaterialForecast(
+      baseCost,
+      shellMaterial,
+      forecastViewMode,
+      70, // Shell is 70% of cost
+      30  // MS Limpet is 30% of cost
+    ).then((response) => {
       if (cancelled) return;
+
       if (response) {
-        setCostForecastData(transformForecastResponse(response));
+        // Transform primary material (Shell)
+        const primaryTransformed =
+          forecastViewMode === 'monthly'
+            ? transformMonthlyForecast(response.primary_material)
+            : transformYearlyForecast(response.primary_material);
+
+        // Transform secondary material (MS)
+        const secondaryTransformed = response.secondary_material
+          ? forecastViewMode === 'monthly'
+            ? transformMonthlyForecast(response.secondary_material)
+            : transformYearlyForecast(response.secondary_material)
+          : [];
+
+        setCostForecastData(primaryTransformed);
+        setCostForecastDataSecondary(secondaryTransformed);
+
         setMaterialInfo({
-          material_type: response.material_type,
-          material_name: response.material_name,
-          current_wpi: response.current_wpi,
-          base_cost: response.base_cost,
+          material_type: response.primary_material.material_type,
+          material_name: response.primary_material.material_name,
+          current_wpi: response.primary_material.current_wpi,
+          base_cost: response.primary_material.base_cost,
         });
       } else {
-        setCostForecastData(getLocalForecast(baseCost, assumptions.annualInflationRate));
-        setForecastError('Backend unavailable – showing estimated forecast based on fixed inflation rate.');
+        setCostForecastData(getLocalForecast(baseCost, assumptions.annualInflationRate, forecastViewMode === 'monthly'));
+        setForecastError('Backend unavailable – showing estimated forecast.');
       }
+
       setForecastLoading(false);
     });
-    return () => { cancelled = true; };
-  }, [calculationResult, inputs, assumptions.annualInflationRate]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [calculationResult, inputs, assumptions.annualInflationRate, forecastViewMode]);
 
   const commodityScenarioData = useMemo(() => {
     if (!calculationResult) return [];
@@ -342,23 +379,33 @@ export default function ReactorOutputPage() {
                 <ResponsiveContainer width="100%" height={350}>
                   <LineChart data={costForecastData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="year" />
-                    <YAxis 
-                      tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`}
-                      // ✅ AUTO-SCALE: Calculate domain based on actual data
-                      domain={(() => {
-                        if (!costForecastData.length) return ['dataMin - 5%', 'dataMax + 5%'];
-                        const costs = costForecastData.map(d => d.cost);
-                        const minCost = Math.min(...costs);
-                        const maxCost = Math.max(...costs);
-                        const range = maxCost - minCost;
-                        const padding = range * 0.1; // 10% padding
-                        return [minCost - padding, maxCost + padding];
-                      })()}
-                    />
+                    <XAxis dataKey={forecastViewMode === 'monthly' ? 'date' : 'year'} />
+                    <YAxis tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`} />
                     <Tooltip formatter={(v) => formatCurrency(Number(v))} />
                     <Legend />
-                    <Line type="monotone" dataKey="cost" stroke="#388e3c" strokeWidth={2} dot={{ r: 5 }} name="Projected Cost" />
+                    
+                    {/* Primary line: Shell Material */}
+                    <Line
+                      type="monotone"
+                      dataKey="cost"
+                      stroke="#1976d2"
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      name={`Shell (${materialInfo?.material_type})`}
+                    />
+                    
+                    {/* Secondary line: MS Limpet */}
+                    {costForecastDataSecondary.length > 0 && (
+                      <Line
+                        type="monotone"
+                        dataKey="cost"
+                        data={costForecastDataSecondary}
+                        stroke="#dc004e"
+                        strokeWidth={2}
+                        dot={{ r: 4 }}
+                        name="Limpet Coil (MS)"
+                      />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </div>

@@ -21,25 +21,44 @@ export interface AirReceiverSpecification {
 
 export interface AirReceiverFormInput {
   Specification: AirReceiverSpecification;
+  NozzleSchedule: {  // ✅ ADD THIS
+    NB_25: { count: number };
+    NB_40: { count: number };
+    NB_50: { count: number };
+    NB_80: { count: number };
+    NB_100: { count: number };
+    NB_150: { count: number };
+    NB_600: { count: number };
+  };
   capacity: number;
   designPressure: number;
   testPressure: number;
 }
 
 export interface AirReceiverAssumptions {
+  // Material Costs
   ss304PlateCost: number;
-  msPlateCost: number;
   ss304PipeCost: number;
-  msPipeCost: number;
+  msPlateCost: number;        
+  msPipeCost: number;         
+  
+  // Labour Costs
   ssLabourCost: number;
   msLabourCost: number;
+  
+  // Density Values
   ss304Density: number;
   msDensity: number;
-  dishPressingCost: number;
+  
+  // Other Costs
+  dishPressingPerSqm: number; 
   machineCharges: number;
   paintingCost: number;
   localTransportCost: number;
   hardwareCost: number;
+  testingCost: number;        
+  
+  // Financial Percentages
   overheadPercent: number;
   profitPercent: number;
   annualInflationRate: number;

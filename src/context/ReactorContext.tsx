@@ -8,8 +8,6 @@ import {
 
 export type { ReactorFormInput, ReactorAssumptions, ReactorCalculationResult };
 
-// Dummy backend response – represents the expected API response structure.
-// TODO: Replace with real API call when backend is ready.
 export const dummyBackendData: BackendResponse = {
   lineItems: [
     { name: 'SS 304 Plate', unitRate: 210, quantity: 3268.39, totalCost: 686361.22 },
@@ -57,6 +55,7 @@ interface ReactorContextType {
   calculationResult: ReactorCalculationResult | null;
   updateInputs: (newInputs: Partial<ReactorFormInput>) => void;
   updateAssumptions: (newAssumptions: Partial<ReactorAssumptions>) => void;
+  setCalculationResult: (result: ReactorCalculationResult | null) => void; // ✅ KEEP THIS
   calculateCosts: () => void;
   saveConfiguration: (name: string) => void;
   loadConfiguration: (name: string) => void;
@@ -142,17 +141,12 @@ export const defaultAssumptions: ReactorAssumptions = {
   annualInflationRate: 5,
 };
 
+// ✅ CREATE REACTOR CONTEXT
 const ReactorContext = createContext<ReactorContextType | undefined>(undefined);
 
 export function ReactorProvider({ children }: { children: React.ReactNode }) {
-  const [inputs, setInputs] = useState<ReactorFormInput>(() => {
-    try {
-      const saved = localStorage.getItem('reactor_current_inputs');
-      return saved ? JSON.parse(saved) : defaultInputs;
-    } catch {
-      return defaultInputs;
-    }
-  });
+  // ✅ ALL useState CALLS INSIDE THE PROVIDER FUNCTION
+  const [inputs, setInputs] = useState<ReactorFormInput>(defaultInputs);
   const [assumptions, setAssumptions] = useState<ReactorAssumptions>(defaultAssumptions);
   const [calculationResult, setCalculationResult] = useState<ReactorCalculationResult | null>(null);
 
@@ -171,8 +165,6 @@ export function ReactorProvider({ children }: { children: React.ReactNode }) {
   const calculateCosts = useCallback(() => {
     const spec = inputs.Specification;
     const shellDiameter = spec.Shell.diameter;
-    // Scale based on shell diameter relative to the base 10KL reactor (2150mm diameter).
-    // Square scaling is used since volume (and thus material weight) scales with the square of diameter.
     const scalingFactor = Math.pow(shellDiameter / 2150, 2);
 
     const materialWeight = {
@@ -293,26 +285,30 @@ export function ReactorProvider({ children }: { children: React.ReactNode }) {
     return Object.keys(configurations);
   }, []);
 
+  // ✅ USE CORRECT INTERFACE
+  const value: ReactorContextType = {
+    inputs,
+    assumptions,
+    calculationResult,
+    updateInputs,
+    updateAssumptions,
+    calculateCosts,
+    setCalculationResult,
+    saveConfiguration,
+    loadConfiguration,
+    getSavedConfigurations,
+  };
+
+  // ✅ USE CORRECT CONTEXT
   return (
-    <ReactorContext.Provider
-      value={{
-        inputs,
-        assumptions,
-        calculationResult,
-        updateInputs,
-        updateAssumptions,
-        calculateCosts,
-        saveConfiguration,
-        loadConfiguration,
-        getSavedConfigurations,
-      }}
-    >
+    <ReactorContext.Provider value={value}>
       {children}
     </ReactorContext.Provider>
   );
 }
 
-export function useReactor() {
+// ✅ CORRECT HOOK NAME
+export function useReactor(): ReactorContextType {
   const context = useContext(ReactorContext);
   if (!context) {
     throw new Error('useReactor must be used within ReactorProvider');

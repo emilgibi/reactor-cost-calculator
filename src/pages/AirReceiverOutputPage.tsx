@@ -37,12 +37,14 @@ import { useAirReceiver } from '../context/AirReceiverContext';
 import { exportUnifiedPDF } from '../utils/pdfGenerator';
 import {
   getForecastFromBackend,
-  transformForecastResponse,
+  getDualMaterialForecast,
+  transformYearlyForecast,
+  transformMonthlyForecast,
   getLocalForecast,
   ForecastDataPoint,
-  type MaterialInfo
+  type MaterialInfo,
+  type DualMaterialForecastResponse,
 } from '../utils/api';
-
 const COLORS = ['#388e3c', '#1976d2', '#dc004e', '#f57c00', '#7b1fa2', '#0097a7'];
 
 function formatCurrency(val: number) {
@@ -66,35 +68,69 @@ export default function AirReceiverOutputPage() {
   const [materialInfo, setMaterialInfo] = useState<MaterialInfo | null>(null);
   const [forecastLoading, setForecastLoading] = useState(false);
   const [forecastError, setForecastError] = useState<string | null>(null);
+  const [forecastViewMode, setForecastViewMode] = useState<'monthly' | 'yearly'>('yearly');
 
   useEffect(() => {
     if (!calculationResult) {
       setCostForecastData([]);
       return;
     }
-    const materialType = inputs.Specification?.Shell?.moc || 'SS304';
+
+    const materialType = inputs.Specification?.Shell?.moc || 'MS';
     const baseCost = calculationResult.grandTotal;
     let cancelled = false;
+
     setForecastLoading(true);
     setForecastError(null);
-    getForecastFromBackend(baseCost, materialType).then((response) => {
+
+    // Fetch forecast with view mode
+    getForecastFromBackend(
+      baseCost,
+      materialType,
+      'MS',
+      false, // not dual material for air receiver
+      forecastViewMode
+    ).then((response) => {
       if (cancelled) return;
-      if (response) {
-        setCostForecastData(transformForecastResponse(response));
+
+      if (response && response.primary_material) {
+        // Transform based on view mode
+        const transformed =
+          forecastViewMode === 'monthly'
+            ? transformMonthlyForecast(response.primary_material)
+            : transformYearlyForecast(response.primary_material);
+
+        setCostForecastData(transformed);
         setMaterialInfo({
-          material_type: response.material_type,
-          material_name: response.material_name,
-          current_wpi: response.current_wpi,
-          base_cost: response.base_cost,
+          material_type: response.primary_material.material_type,
+          material_name: response.primary_material.material_name,
+          current_wpi: response.primary_material.current_wpi,
+          base_cost: response.primary_material.base_cost,
         });
       } else {
-        setCostForecastData(getLocalForecast(baseCost, assumptions.annualInflationRate));
-        setForecastError('Backend unavailable – showing estimated forecast based on fixed inflation rate.');
+        setCostForecastData(
+          getLocalForecast(
+            baseCost,
+            assumptions.annualInflationRate,
+            forecastViewMode === 'monthly'
+          )
+        );
+        setForecastError('Backend unavailable – showing estimated forecast.');
       }
+
       setForecastLoading(false);
     });
-    return () => { cancelled = true; };
-  }, [calculationResult, inputs, assumptions.annualInflationRate]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [calculationResult, inputs, assumptions.annualInflationRate, forecastViewMode]);
+
+  // ✅ NEW: Handle view mode change
+  const handleForecastViewChange = async (mode: 'monthly' | 'yearly') => {
+    setForecastViewMode(mode);
+    // The useEffect will be triggered automatically
+  };
 
   const commodityScenarioData = useMemo(() => {
     if (!calculationResult) return [];
@@ -275,49 +311,104 @@ export default function AirReceiverOutputPage() {
           </TabPanel>
 
           <TabPanel value={tabValue} index={2}>
-            <Typography variant="h6" sx={{ mb: 0.5, fontWeight: 600 }}>
-              5-Year Cost Forecast {materialInfo ? `(WPI-based ML prediction for ${materialInfo.material_name})` : '(WPI-based ML prediction)'}
-            </Typography>
-            {materialInfo && (
-              <Typography variant="body2" sx={{ mb: 2, color: '#666' }}>
-                Base Cost: ₹{(materialInfo.base_cost / 100000).toFixed(2)}L | 
-                Material: {materialInfo.material_type} | 
-                Current WPI: {materialInfo.current_wpi.toFixed(2)}
+            {/* ========== CONTROLS ========== */}
+            <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                5-Year Cost Forecast (WPI-based ML prediction)
               </Typography>
+
+              {/* ✅ VIEW MODE DROPDOWN */}
+              <select
+                id="view-mode"
+                value={forecastViewMode}
+                onChange={(e) => {
+                  setForecastViewMode(e.target.value as 'monthly' | 'yearly');
+                  handleForecastViewChange(e.target.value as 'monthly' | 'yearly');
+                }}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="yearly">📊 Yearly View (6 points)</option>
+                <option value="monthly">📈 Monthly View (60 points)</option>
+              </select>
+            </Box>
+
+            {/* ========== INFO SECTION ========== */}
+            {materialInfo && (
+              <Box sx={{ mb: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: '4px' }}>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Material:</strong> {materialInfo.material_name}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Base Cost:</strong> ₹{(materialInfo.base_cost / 100000).toFixed(2)}L
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Current WPI:</strong> {materialInfo.current_wpi.toFixed(2)}
+                </Typography>
+              </Box>
             )}
+
+            {/* ========== ERROR ALERT ========== */}
             {forecastError && (
               <Alert severity="warning" sx={{ mb: 2 }}>
                 {forecastError}
               </Alert>
             )}
+
+            {/* ========== LOADING STATE ========== */}
             {forecastLoading ? (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
                   <CircularProgress size={20} />
-                  <Typography variant="body2" color="text.secondary">Fetching WPI-based forecast…</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Fetching WPI-based forecast…
+                  </Typography>
                 </Box>
                 <Skeleton variant="rectangular" height={350} />
               </Box>
             ) : (
+              /* ========== CHART ========== */
               <ResponsiveContainer width="100%" height={350}>
                 <LineChart data={costForecastData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="year" />
-                  <YAxis 
+                  <XAxis
+                    dataKey={forecastViewMode === 'monthly' ? 'date' : 'year'}
+                    angle={forecastViewMode === 'monthly' ? -45 : 0}
+                    textAnchor={forecastViewMode === 'monthly' ? 'end' : 'middle'}
+                    height={forecastViewMode === 'monthly' ? 80 : 30}
+                  />
+                  <YAxis
                     tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`}
                     domain={(() => {
                       if (!costForecastData.length) return ['dataMin - 5%', 'dataMax + 5%'];
-                      const costs = costForecastData.map(d => d.cost);
+                      const costs = costForecastData.map((d) => d.cost);
                       const minCost = Math.min(...costs);
                       const maxCost = Math.max(...costs);
                       const range = maxCost - minCost;
-                      const padding = range * 0.1; // 10% padding
+                      const padding = range * 0.1;
                       return [minCost - padding, maxCost + padding];
                     })()}
                   />
-                  <Tooltip formatter={(v) => formatCurrency(Number(v))} />
+                  <Tooltip
+                    formatter={(v) => formatCurrency(Number(v))}
+                    labelFormatter={(label) =>
+                      forecastViewMode === 'monthly' ? `${label}` : `${label}`
+                    }
+                  />
                   <Legend />
-                  <Line type="monotone" dataKey="cost" stroke="#388e3c" strokeWidth={2} dot={{ r: 5 }} name="Projected Cost" />
+                  <Line
+                    type="monotone"
+                    dataKey="cost"
+                    stroke="#388e3c"
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                    name="Projected Cost"
+                  />
                 </LineChart>
               </ResponsiveContainer>
             )}

@@ -30,12 +30,15 @@ import { Save as SaveIcon, Download as DownloadIcon, Calculate as CalculateIcon 
 import { ReactorFormInput } from '../types/reactor';
 
 export default function ReactorInputPage() {
-  const { inputs, updateInputs, calculateCosts, saveConfiguration, loadConfiguration, getSavedConfigurations } =
+  const {inputs, updateInputs, calculateCosts, saveConfiguration, loadConfiguration, getSavedConfigurations } =
     useReactor();
   const navigate = useNavigate();
+  const {assumptions, setCalculationResult } = useReactor();
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [loadDialogOpen, setLoadDialogOpen] = useState(false);
   const [configName, setConfigName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const spec = inputs.Specification;
   const nozzle = inputs.NozzleSchedule;
@@ -44,9 +47,81 @@ export default function ReactorInputPage() {
     updateInputs({ Specification: { ...spec, ...partial } });
   };
 
-  const handleCalculate = () => {
-    calculateCosts();
-    navigate('/reactor/output');
+  const handleCalculate = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+      
+      const response = await fetch(`${backendUrl}/api/kl-reactor-calculation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          Kl: 10, 
+          Specification: inputs.Specification,
+          NozzleSchedule: inputs.NozzleSchedule,
+          Assumptions: {
+            MaterialCosts: {
+              SS304_Plate: assumptions.ss304PlateCost,
+              SS304_Pipe: assumptions.ss304PipeCost,
+              MS_Plate: assumptions.msPlateCost,
+              MS_Pipe: assumptions.msPipeCost,
+            },
+            LabourCosts: {
+              ssLabourCost: assumptions.ssLabourCost,
+              msLabourCost: assumptions.msLabourCost,
+            },
+            DensityValues: {
+              SS304: assumptions.ss304Density,
+              MS: assumptions.msDensity,
+            },
+            BroughtOutComponents: {
+              gearBox: assumptions.gearBoxCost,
+              motor: assumptions.motorCost,
+              bearing: assumptions.bearingCost,
+              singleMechanicalSeal: assumptions.singleSealCost,
+              flexibleCoupling: assumptions.flexibleCouplingCost,
+              toughenedGlass: assumptions.toughenedGlassCost,
+            },
+            FinancialPercentages: {
+              overhead: assumptions.overheadPercent,
+              profit: assumptions.profitPercent,
+              inflationRate: assumptions.annualInflationRate,
+            },
+            OtherCosts: {
+              dishPressingPerSqm: assumptions.dishPressingCost,
+              machineCharges: assumptions.machineCharges,
+              agitatorAssembly: assumptions.agitatorAssemblyCost,
+              acidCleaningPerSqm: assumptions.acidCleaningCost,
+              mirrorFinishPerSqm: assumptions.mirrorFinishCost,
+              paintingLumpsum: assumptions.paintingCost,
+              localTransportLumpsum: assumptions.localTransportCost,
+            },
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        setError('Calculation failed. Please check your inputs.');
+        setLoading(false);
+        return;
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setCalculationResult(result.results);
+        navigate('/reactor/output');
+      } else {
+        setError(result.error || 'Calculation failed');
+      }
+    } catch (err: any) {
+      setError('Error: ' + (err.message || 'Unknown error'));
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSave = () => {
@@ -422,12 +497,11 @@ export default function ReactorInputPage() {
       <Box sx={{ display: 'flex', gap: 2 }}>
         <Button
           variant="contained"
-          size="large"
-          startIcon={<CalculateIcon />}
           onClick={handleCalculate}
-          sx={{ px: 4 }}
+          disabled={loading}
+          sx={{ background: 'linear-gradient(135deg, #1976d2, #1565c0)' }}
         >
-          Calculate Costs
+          {loading ? 'Calculating...' : 'Calculate Costs'}
         </Button>
         <Button variant="outlined" size="large" onClick={() => setSaveDialogOpen(true)}>
           Save Configuration

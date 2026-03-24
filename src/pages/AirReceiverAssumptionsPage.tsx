@@ -121,7 +121,7 @@ export default function AirReceiverAssumptionsPage() {
         </AccordionSummary>
         <AccordionDetails>
           <Grid container spacing={2}>
-            {field('dishPressingCost', 'Dish Pressing (per kg)')}
+            {field('dishPressingPerSqm', 'Dish Pressing (per kg)')}
             {field('machineCharges', 'Machine Charges')}
             {field('hardwareCost', 'Hardware')}
             {field('paintingCost', 'Painting')}
