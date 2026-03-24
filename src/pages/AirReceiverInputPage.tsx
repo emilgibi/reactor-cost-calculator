@@ -95,13 +95,17 @@ export default function AirReceiverInputPage() {
           },
           Assumptions: {
             MaterialCosts: {
+              ss304PlateCost: assumptions.ss304PlateCost || 210,
+              ss304PipeCost: assumptions.ss304PipeCost || 350,
               msPlateCost: assumptions.msPlateCost || 80,
               msPipeCost: assumptions.msPipeCost || 120,
             },
             LabourCosts: {
+              ssLabourCost: assumptions.ssLabourCost || 28,
               msLabourCost: assumptions.msLabourCost || 30,
             },
             DensityValues: {
+              ss304Density: assumptions.ss304Density || 8,
               msDensity: assumptions.msDensity || 7.86,
             },
             FinancialPercentages: {

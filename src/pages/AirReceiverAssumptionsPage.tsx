@@ -29,7 +29,7 @@ export default function AirReceiverAssumptionsPage() {
 
   const handleApply = () => {
     updateAssumptions(localAssumptions);
-    calculateCosts();
+    calculateCosts(localAssumptions);
     setToastOpen(true);
     setTimeout(() => navigate('/air-receiver/output'), 1200);
   };

@@ -59,7 +59,7 @@ interface ReactorContextType {
   updateInputs: (newInputs: Partial<ReactorFormInput>) => void;
   updateAssumptions: (newAssumptions: Partial<ReactorAssumptions>) => void;
   setCalculationResult: (result: ReactorCalculationResult | null) => void; // ✅ KEEP THIS
-  calculateCosts: () => void;
+  calculateCosts: (assumptionsOverride?: ReactorAssumptions) => void;
   saveConfiguration: (name: string) => void;
   loadConfiguration: (name: string) => void;
   getSavedConfigurations: () => string[];
@@ -165,7 +165,8 @@ export function ReactorProvider({ children }: { children: React.ReactNode }) {
     setAssumptions((prev) => ({ ...prev, ...newAssumptions }));
   }, []);
 
-  const calculateCosts = useCallback(() => {
+  const calculateCosts = useCallback((assumptionsOverride?: ReactorAssumptions) => {
+    const a = assumptionsOverride || assumptions;
     const spec = inputs.Specification;
     const shellDiameter = spec.Shell.diameter;
     const scalingFactor = Math.pow(shellDiameter / 2150, 2);
@@ -177,37 +178,37 @@ export function ReactorProvider({ children }: { children: React.ReactNode }) {
       ms_pipe: 3.98 * scalingFactor,
     };
 
-    const ss304PlateCostTotal = materialWeight.ss304 * assumptions.ss304PlateCost;
-    const ss304PipeCostTotal = materialWeight.ss_pipe * assumptions.ss304PipeCost;
-    const msPlateCostTotal = materialWeight.ms * assumptions.msPlateCost;
-    const msPipeCostTotal = materialWeight.ms_pipe * assumptions.msPipeCost;
-    const ssLabourCostTotal = (materialWeight.ss304 + materialWeight.ss_pipe) * assumptions.ssLabourCost;
-    const msLabourCostTotal = (materialWeight.ms + materialWeight.ms_pipe) * assumptions.msLabourCost;
+    const ss304PlateCostTotal = materialWeight.ss304 * a.ss304PlateCost;
+    const ss304PipeCostTotal = materialWeight.ss_pipe * a.ss304PipeCost;
+    const msPlateCostTotal = materialWeight.ms * a.msPlateCost;
+    const msPipeCostTotal = materialWeight.ms_pipe * a.msPipeCost;
+    const ssLabourCostTotal = (materialWeight.ss304 + materialWeight.ss_pipe) * a.ssLabourCost;
+    const msLabourCostTotal = (materialWeight.ms + materialWeight.ms_pipe) * a.msLabourCost;
 
-    let broughtOutCost = assumptions.bearingCost + assumptions.flexibleCouplingCost + assumptions.toughenedGlassCost;
+    let broughtOutCost = a.bearingCost + a.flexibleCouplingCost + a.toughenedGlassCost;
     if (spec.Motor.type === 'Flameproof') {
-      broughtOutCost += assumptions.gearBoxCost + assumptions.motorCost;
+      broughtOutCost += a.gearBoxCost + a.motorCost;
     }
     if (spec.MechanicalSeal.type === 'Single') {
-      broughtOutCost += assumptions.singleSealCost;
+      broughtOutCost += a.singleSealCost;
     } else if (spec.MechanicalSeal.type === 'Double') {
-      broughtOutCost += assumptions.doubleSealCost;
+      broughtOutCost += a.doubleSealCost;
     }
 
-    const dishPressingTotal = assumptions.dishPressingCost * 972.2 * scalingFactor;
-    const acidCleaningTotal = assumptions.acidCleaningCost * 278.73 * scalingFactor;
-    const mirrorFinishTotal = spec.Finish.type === 'Mirror' ? assumptions.mirrorFinishCost * 26.18 * scalingFactor : 0;
+    const dishPressingTotal = a.dishPressingCost * 972.2 * scalingFactor;
+    const acidCleaningTotal = a.acidCleaningCost * 278.73 * scalingFactor;
+    const mirrorFinishTotal = spec.Finish.type === 'Mirror' ? a.mirrorFinishCost * 26.18 * scalingFactor : 0;
     const limpetCost = spec.Shell.limpet ? 198503 * scalingFactor : 0;
 
     const fabricationCost =
       ss304PlateCostTotal + ss304PipeCostTotal + msPlateCostTotal + msPipeCostTotal +
       ssLabourCostTotal + msLabourCostTotal +
-      limpetCost + assumptions.consumableCost + assumptions.hardwareCost + broughtOutCost +
-      dishPressingTotal + assumptions.machineCharges + assumptions.agitatorAssemblyCost +
-      acidCleaningTotal + mirrorFinishTotal + assumptions.paintingCost + assumptions.localTransportCost;
+      limpetCost + a.consumableCost + a.hardwareCost + broughtOutCost +
+      dishPressingTotal + a.machineCharges + a.agitatorAssemblyCost +
+      acidCleaningTotal + mirrorFinishTotal + a.paintingCost + a.localTransportCost;
 
-    const overheadAmount = (fabricationCost * assumptions.overheadPercent) / 100;
-    const profitAmount = ((fabricationCost + overheadAmount) * assumptions.profitPercent) / 100;
+    const overheadAmount = (fabricationCost * a.overheadPercent) / 100;
+    const profitAmount = ((fabricationCost + overheadAmount) * a.profitPercent) / 100;
     const grandTotal = fabricationCost + overheadAmount + profitAmount;
 
     const mkItem = (description: string, unit_rate: number | null, quantity: number | null, unit_type: string | null, total_cost: number): CostItem => ({
@@ -219,30 +220,30 @@ export function ReactorProvider({ children }: { children: React.ReactNode }) {
     });
 
     const fabrication_breakdown: FabricationBreakdown = {
-      ss304_plate: mkItem('SS304 Plate', assumptions.ss304PlateCost, materialWeight.ss304, 'kg', ss304PlateCostTotal),
-      ss304_pipe: mkItem('SS304 Pipe', assumptions.ss304PipeCost, materialWeight.ss_pipe, 'kg', ss304PipeCostTotal),
-      ms_plate: mkItem('MS Plate', assumptions.msPlateCost, materialWeight.ms, 'kg', msPlateCostTotal),
-      ms_pipe: mkItem('MS Pipe', assumptions.msPipeCost, materialWeight.ms_pipe, 'kg', msPipeCostTotal),
-      ss_labour: mkItem('SS Labour', assumptions.ssLabourCost, materialWeight.ss304 + materialWeight.ss_pipe, 'kg', ssLabourCostTotal),
-      ms_labour: mkItem('MS Labour', assumptions.msLabourCost, materialWeight.ms + materialWeight.ms_pipe, 'kg', msLabourCostTotal),
+      ss304_plate: mkItem('SS304 Plate', a.ss304PlateCost, materialWeight.ss304, 'kg', ss304PlateCostTotal),
+      ss304_pipe: mkItem('SS304 Pipe', a.ss304PipeCost, materialWeight.ss_pipe, 'kg', ss304PipeCostTotal),
+      ms_plate: mkItem('MS Plate', a.msPlateCost, materialWeight.ms, 'kg', msPlateCostTotal),
+      ms_pipe: mkItem('MS Pipe', a.msPipeCost, materialWeight.ms_pipe, 'kg', msPipeCostTotal),
+      ss_labour: mkItem('SS Labour', a.ssLabourCost, materialWeight.ss304 + materialWeight.ss_pipe, 'kg', ssLabourCostTotal),
+      ms_labour: mkItem('MS Labour', a.msLabourCost, materialWeight.ms + materialWeight.ms_pipe, 'kg', msLabourCostTotal),
       limpet: mkItem('Limpet', null, null, null, limpetCost),
-      consumable: mkItem('Consumables', null, null, null, assumptions.consumableCost),
-      hardware: mkItem('Hardware', null, null, null, assumptions.hardwareCost),
+      consumable: mkItem('Consumables', null, null, null, a.consumableCost),
+      hardware: mkItem('Hardware', null, null, null, a.hardwareCost),
       brought_out: mkItem('Brought Out Components', null, null, null, broughtOutCost),
-      dish_pressing: mkItem('Dish Pressing', assumptions.dishPressingCost, 972.2 * scalingFactor, 'sqm', dishPressingTotal),
-      machine_charges: mkItem('Machine Charges', null, null, null, assumptions.machineCharges),
-      agitator_assembly: mkItem('Agitator Assembly', null, null, null, assumptions.agitatorAssemblyCost),
-      acid_cleaning: mkItem('Acid Cleaning', assumptions.acidCleaningCost, 278.73 * scalingFactor, 'sqm', acidCleaningTotal),
-      mirror_finish: mkItem('Mirror Finish', assumptions.mirrorFinishCost, spec.Finish.type === 'Mirror' ? 26.18 * scalingFactor : 0, 'sqm', mirrorFinishTotal),
-      painting: mkItem('Painting', null, null, null, assumptions.paintingCost),
-      local_transport: mkItem('Local Transport', null, null, null, assumptions.localTransportCost),
+      dish_pressing: mkItem('Dish Pressing', a.dishPressingCost, 972.2 * scalingFactor, 'sqm', dishPressingTotal),
+      machine_charges: mkItem('Machine Charges', null, null, null, a.machineCharges),
+      agitator_assembly: mkItem('Agitator Assembly', null, null, null, a.agitatorAssemblyCost),
+      acid_cleaning: mkItem('Acid Cleaning', a.acidCleaningCost, 278.73 * scalingFactor, 'sqm', acidCleaningTotal),
+      mirror_finish: mkItem('Mirror Finish', a.mirrorFinishCost, spec.Finish.type === 'Mirror' ? 26.18 * scalingFactor : 0, 'sqm', mirrorFinishTotal),
+      painting: mkItem('Painting', null, null, null, a.paintingCost),
+      local_transport: mkItem('Local Transport', null, null, null, a.localTransportCost),
     };
 
     const summary: CostSummary = {
       fabrication_cost: fabricationCost,
-      overhead_percentage: assumptions.overheadPercent,
+      overhead_percentage: a.overheadPercent,
       overhead_amount: overheadAmount,
-      profit_percentage: assumptions.profitPercent,
+      profit_percentage: a.profitPercent,
       profit_amount: profitAmount,
       grand_total: grandTotal,
     };
