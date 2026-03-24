@@ -34,7 +34,7 @@ export interface MaterialForecast {
 
 export interface DualMaterialForecastResponse {
   success: boolean;
-  view_mode: 'monthly' | 'yearly' | 'both';
+  view_mode: 'yearly';
   primary_material: MaterialForecast;
   secondary_material?: MaterialForecast;
   total_base_cost: number;
@@ -59,27 +59,26 @@ export interface MaterialInfo {
 // ========== API CALLS ==========
 
 /**
- * Fetch forecast from backend with dual material support and view mode
+ * Fetch forecast from backend with dual material support (always yearly)
  */
 export async function getForecastFromBackend(
-  baseCost: number,
+  materialPrice: number,
   primaryMaterial: string,
   secondaryMaterial: string = 'MS',
-  includeSecondary: boolean = false,
-  viewMode: 'monthly' | 'yearly' | 'both' = 'yearly'
+  includeSecondary: boolean = false
 ): Promise<DualMaterialForecastResponse | null> {
   try {
     const response = await fetch(`${backendUrl}/api/forecast`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        base_cost: baseCost,
+        base_cost: materialPrice,
         material_type: primaryMaterial,
         include_secondary_material: includeSecondary,
         secondary_material_type: secondaryMaterial,
         primary_cost_percentage: 100,
         secondary_cost_percentage: 0,
-        view_mode: viewMode,
+        view_mode: 'yearly',
         months_ahead: 60,
       }),
     });
@@ -97,12 +96,11 @@ export async function getForecastFromBackend(
 }
 
 /**
- * Fetch dual material forecast (for reactors with shell + limpet)
+ * Fetch dual material forecast (for reactors with shell + limpet, always yearly)
  */
 export async function getDualMaterialForecast(
-  baseCost: number,
+  materialPrice: number,
   primaryMaterial: string,
-  viewMode: 'monthly' | 'yearly' | 'both' = 'yearly',
   primaryPercentage: number = 70,
   secondaryPercentage: number = 30
 ): Promise<DualMaterialForecastResponse | null> {
@@ -111,13 +109,13 @@ export async function getDualMaterialForecast(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        base_cost: baseCost,
+        base_cost: materialPrice,
         material_type: primaryMaterial,
         include_secondary_material: true,
         secondary_material_type: 'MS', // Always MS for limpet
         primary_cost_percentage: primaryPercentage,
         secondary_cost_percentage: secondaryPercentage,
-        view_mode: viewMode,
+        view_mode: 'yearly',
         months_ahead: 60,
       }),
     });
@@ -143,6 +141,7 @@ export function transformYearlyForecast(
     .filter((item): item is YearlyForecastItem => 'year' in item) // ✅ TYPE GUARD
     .map((item) => ({
       year: `Year ${item.year}`,
+      date: item.date,  // calendar year like "2026"
       cost: Math.round(item.projectedCost),
       wpiIndex: item.wpiIndex,
       costChange: item.costChange,
@@ -167,40 +166,23 @@ export function transformMonthlyForecast(
 }
 
 /**
- * Fallback: 5% annual inflation
+ * Fallback: 5% annual inflation (yearly only)
  */
 export function getLocalForecast(
   baseCost: number,
-  inflationRate: number,
-  months: boolean = false
+  inflationRate: number
 ): ForecastDataPoint[] {
-  if (months) {
-    // Monthly fallback
-    return Array.from({ length: 60 }, (_, idx) => {
-      const monthInflation = Math.pow(1 + inflationRate / 100, idx / 12);
-      const cost = Math.round(baseCost * monthInflation);
-      return {
-        month: idx,
-        date: `M${idx + 1}`,
-        cost,
-        costChange:
-          idx === 0
-            ? 0
-            : Math.round(((cost - baseCost) / baseCost) * 100 * 100) / 100,
-      };
-    });
-  } else {
-    // Yearly fallback
-    return Array.from({ length: 6 }, (_, year) => {
-      const cost = Math.round(baseCost * Math.pow(1 + inflationRate / 100, year));
-      return {
-        year: `Year ${year}`,
-        cost,
-        costChange:
-          year === 0
-            ? 0
-            : Math.round(((cost - baseCost) / baseCost) * 100 * 100) / 100,
-      };
-    });
-  }
+  const baseYear = new Date().getFullYear();
+  return Array.from({ length: 6 }, (_, year) => {
+    const cost = Math.round(baseCost * Math.pow(1 + inflationRate / 100, year));
+    return {
+      year: `Year ${year}`,
+      date: String(baseYear + year),
+      cost,
+      costChange:
+        year === 0
+          ? 0
+          : Math.round(((cost - baseCost) / baseCost) * 100 * 100) / 100,
+    };
+  });
 }
