@@ -71,13 +71,13 @@ export default function AirReceiverInputPage() {
           Specification: {
             Shell: {
               moc: inputs.Specification?.Shell?.moc || 'CS',
-              width: inputs.Specification?.Shell?.diameter || 2200,
+              diameter: inputs.Specification?.Shell?.diameter || 2200,
               height: inputs.Specification?.Shell?.height || 4500,
               thickness: inputs.Specification?.Shell?.thickness || 12,
             },
             Dish: {
               moc: inputs.Specification?.Dish?.moc || 'CS',
-              width: inputs.Specification?.Dish?.diameter || 2200,
+              diameter: inputs.Specification?.Dish?.diameter || 2200,
               thickness: inputs.Specification?.Dish?.thickness || 8,
             },
             Finish: {
@@ -95,14 +95,14 @@ export default function AirReceiverInputPage() {
           },
           Assumptions: {
             MaterialCosts: {
-              MS_Plate: assumptions.msPlateCost || 80,
-              MS_Pipe: assumptions.msPipeCost || 120,
+              msPlateCost: assumptions.msPlateCost || 80,
+              msPipeCost: assumptions.msPipeCost || 120,
             },
             LabourCosts: {
-              MS_Labour: assumptions.msLabourCost || 30,
+              msLabourCost: assumptions.msLabourCost || 30,
             },
             DensityValues: {
-              MS: assumptions.msDensity || 7.86,
+              msDensity: assumptions.msDensity || 7.86,
             },
             FinancialPercentages: {
               overhead: assumptions.overheadPercent || 10,
@@ -120,7 +120,7 @@ export default function AirReceiverInputPage() {
           },
         };
 
-        const response = await fetch(`${backendUrl}/api/air-receiver-calculation`, {
+        const response = await fetch(`${backendUrl}/analysis/air-receiver-calculation`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),

@@ -4,6 +4,9 @@ import {
   ReactorAssumptions,
   ReactorCalculationResult,
   BackendResponse,
+  CostItem,
+  FabricationBreakdown,
+  CostSummary,
 } from '../types/reactor';
 
 export type { ReactorFormInput, ReactorAssumptions, ReactorCalculationResult };
@@ -174,96 +177,80 @@ export function ReactorProvider({ children }: { children: React.ReactNode }) {
       ms_pipe: 3.98 * scalingFactor,
     };
 
-    const costBreakdown: { [key: string]: number } = {};
-    const ss304PleateCost = materialWeight.ss304 * assumptions.ss304PlateCost;
-    const ss304PipeCost = materialWeight.ss_pipe * assumptions.ss304PipeCost;
-    const msPlateCost = materialWeight.ms * assumptions.msPlateCost;
-    const msPipeCost = materialWeight.ms_pipe * assumptions.msPipeCost;
+    const ss304PlateCostTotal = materialWeight.ss304 * assumptions.ss304PlateCost;
+    const ss304PipeCostTotal = materialWeight.ss_pipe * assumptions.ss304PipeCost;
+    const msPlateCostTotal = materialWeight.ms * assumptions.msPlateCost;
+    const msPipeCostTotal = materialWeight.ms_pipe * assumptions.msPipeCost;
+    const ssLabourCostTotal = (materialWeight.ss304 + materialWeight.ss_pipe) * assumptions.ssLabourCost;
+    const msLabourCostTotal = (materialWeight.ms + materialWeight.ms_pipe) * assumptions.msLabourCost;
 
-    costBreakdown['SS304 Plate'] = ss304PleateCost;
-    costBreakdown['SS304 Pipe'] = ss304PipeCost;
-    costBreakdown['MS Plate'] = msPlateCost;
-    costBreakdown['MS Pipe'] = msPipeCost;
-
-    let totalMaterialCost = ss304PleateCost + ss304PipeCost + msPlateCost + msPipeCost;
-
-    const ssLabourCost = (materialWeight.ss304 + materialWeight.ss_pipe) * assumptions.ssLabourCost;
-    const msLabourCost = (materialWeight.ms + materialWeight.ms_pipe) * assumptions.msLabourCost;
-    costBreakdown['SS Labour'] = ssLabourCost;
-    costBreakdown['MS Labour'] = msLabourCost;
-    totalMaterialCost += ssLabourCost + msLabourCost;
-
+    let broughtOutCost = assumptions.bearingCost + assumptions.flexibleCouplingCost + assumptions.toughenedGlassCost;
     if (spec.Motor.type === 'Flameproof') {
-      costBreakdown['Gear Box'] = assumptions.gearBoxCost;
-      costBreakdown['Motor (Flameproof)'] = assumptions.motorCost;
-      totalMaterialCost += assumptions.gearBoxCost + assumptions.motorCost;
+      broughtOutCost += assumptions.gearBoxCost + assumptions.motorCost;
     }
-
-    costBreakdown['Bearing'] = assumptions.bearingCost;
-    totalMaterialCost += assumptions.bearingCost;
-
     if (spec.MechanicalSeal.type === 'Single') {
-      costBreakdown['Single Mechanical Seal'] = assumptions.singleSealCost;
-      totalMaterialCost += assumptions.singleSealCost;
+      broughtOutCost += assumptions.singleSealCost;
     } else if (spec.MechanicalSeal.type === 'Double') {
-      costBreakdown['Double Mechanical Seal'] = assumptions.doubleSealCost;
-      totalMaterialCost += assumptions.doubleSealCost;
+      broughtOutCost += assumptions.doubleSealCost;
     }
 
-    costBreakdown['Flexible Coupling'] = assumptions.flexibleCouplingCost;
-    costBreakdown['Toughened Glass'] = assumptions.toughenedGlassCost;
-    totalMaterialCost += assumptions.flexibleCouplingCost + assumptions.toughenedGlassCost;
+    const dishPressingTotal = assumptions.dishPressingCost * 972.2 * scalingFactor;
+    const acidCleaningTotal = assumptions.acidCleaningCost * 278.73 * scalingFactor;
+    const mirrorFinishTotal = spec.Finish.type === 'Mirror' ? assumptions.mirrorFinishCost * 26.18 * scalingFactor : 0;
+    const limpetCost = spec.Shell.limpet ? 198503 * scalingFactor : 0;
 
-    costBreakdown['Hardware'] = assumptions.hardwareCost;
-    costBreakdown['Consumables'] = assumptions.consumableCost;
-    costBreakdown['Dish Pressing'] = assumptions.dishPressingCost * 972.2 * scalingFactor;
-    costBreakdown['Machine Charges'] = assumptions.machineCharges;
-    costBreakdown['Agitator Assembly'] = assumptions.agitatorAssemblyCost;
-    costBreakdown['Acid Cleaning'] = assumptions.acidCleaningCost * 278.73 * scalingFactor;
-    costBreakdown['Mirror Finish'] =
-      spec.Finish.type === 'Mirror' ? assumptions.mirrorFinishCost * 26.18 * scalingFactor : 0;
-    costBreakdown['Painting'] = assumptions.paintingCost;
-    costBreakdown['Local Transport'] = assumptions.localTransportCost;
+    const fabricationCost =
+      ss304PlateCostTotal + ss304PipeCostTotal + msPlateCostTotal + msPipeCostTotal +
+      ssLabourCostTotal + msLabourCostTotal +
+      limpetCost + assumptions.consumableCost + assumptions.hardwareCost + broughtOutCost +
+      dishPressingTotal + assumptions.machineCharges + assumptions.agitatorAssemblyCost +
+      acidCleaningTotal + mirrorFinishTotal + assumptions.paintingCost + assumptions.localTransportCost;
 
-    const otherCosts =
-      assumptions.hardwareCost +
-      assumptions.consumableCost +
-      assumptions.dishPressingCost * 972.2 * scalingFactor +
-      assumptions.machineCharges +
-      assumptions.agitatorAssemblyCost +
-      assumptions.acidCleaningCost * 278.73 * scalingFactor +
-      (spec.Finish.type === 'Mirror' ? assumptions.mirrorFinishCost * 26.18 * scalingFactor : 0) +
-      assumptions.paintingCost +
-      assumptions.localTransportCost;
+    const overheadAmount = (fabricationCost * assumptions.overheadPercent) / 100;
+    const profitAmount = ((fabricationCost + overheadAmount) * assumptions.profitPercent) / 100;
+    const grandTotal = fabricationCost + overheadAmount + profitAmount;
 
-    const fabricationCost = totalMaterialCost + otherCosts;
+    const mkItem = (description: string, unit_rate: number | null, quantity: number | null, unit_type: string | null, total_cost: number): CostItem => ({
+      description,
+      unit_rate,
+      quantity,
+      unit_type,
+      total_cost,
+    });
 
-    if (spec.Shell.limpet) {
-      const limpetCost = 198503 * scalingFactor;
-      costBreakdown['Limpet'] = limpetCost;
-      totalMaterialCost += limpetCost;
-    }
+    const fabrication_breakdown: FabricationBreakdown = {
+      ss304_plate: mkItem('SS304 Plate', assumptions.ss304PlateCost, materialWeight.ss304, 'kg', ss304PlateCostTotal),
+      ss304_pipe: mkItem('SS304 Pipe', assumptions.ss304PipeCost, materialWeight.ss_pipe, 'kg', ss304PipeCostTotal),
+      ms_plate: mkItem('MS Plate', assumptions.msPlateCost, materialWeight.ms, 'kg', msPlateCostTotal),
+      ms_pipe: mkItem('MS Pipe', assumptions.msPipeCost, materialWeight.ms_pipe, 'kg', msPipeCostTotal),
+      ss_labour: mkItem('SS Labour', assumptions.ssLabourCost, materialWeight.ss304 + materialWeight.ss_pipe, 'kg', ssLabourCostTotal),
+      ms_labour: mkItem('MS Labour', assumptions.msLabourCost, materialWeight.ms + materialWeight.ms_pipe, 'kg', msLabourCostTotal),
+      limpet: mkItem('Limpet', null, null, null, limpetCost),
+      consumable: mkItem('Consumables', null, null, null, assumptions.consumableCost),
+      hardware: mkItem('Hardware', null, null, null, assumptions.hardwareCost),
+      brought_out: mkItem('Brought Out Components', null, null, null, broughtOutCost),
+      dish_pressing: mkItem('Dish Pressing', assumptions.dishPressingCost, 972.2 * scalingFactor, 'sqm', dishPressingTotal),
+      machine_charges: mkItem('Machine Charges', null, null, null, assumptions.machineCharges),
+      agitator_assembly: mkItem('Agitator Assembly', null, null, null, assumptions.agitatorAssemblyCost),
+      acid_cleaning: mkItem('Acid Cleaning', assumptions.acidCleaningCost, 278.73 * scalingFactor, 'sqm', acidCleaningTotal),
+      mirror_finish: mkItem('Mirror Finish', assumptions.mirrorFinishCost, spec.Finish.type === 'Mirror' ? 26.18 * scalingFactor : 0, 'sqm', mirrorFinishTotal),
+      painting: mkItem('Painting', null, null, null, assumptions.paintingCost),
+      local_transport: mkItem('Local Transport', null, null, null, assumptions.localTransportCost),
+    };
 
-    const overheadCost = (fabricationCost * assumptions.overheadPercent) / 100;
-    costBreakdown['Overhead'] = overheadCost;
-
-    const profitCost = ((fabricationCost + overheadCost) * assumptions.profitPercent) / 100;
-    costBreakdown['Profit'] = profitCost;
-
-    const grandTotal = fabricationCost + overheadCost + profitCost;
+    const summary: CostSummary = {
+      fabrication_cost: fabricationCost,
+      overhead_percentage: assumptions.overheadPercent,
+      overhead_amount: overheadAmount,
+      profit_percentage: assumptions.profitPercent,
+      profit_amount: profitAmount,
+      grand_total: grandTotal,
+    };
 
     setCalculationResult({
       success: true,
       message: 'Local calculation completed',
-      results: {
-        material_weight: materialWeight,
-        cost_breakdown: costBreakdown,
-        total_material_cost: totalMaterialCost,
-        total_labour_cost: ssLabourCost + msLabourCost,
-        overhead_cost: overheadCost,
-        profit_cost: profitCost,
-        grand_total: grandTotal,
-      },
+      results: { fabrication_breakdown, summary },
     });
   }, [inputs, assumptions]);
 
