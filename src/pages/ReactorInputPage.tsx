@@ -24,13 +24,14 @@ import {
   ListItemButton,
   FormControl,
   InputLabel,
+  Alert,
 } from '@mui/material';
 import { useReactor } from '../context/ReactorContext';
-import { Save as SaveIcon, Download as DownloadIcon, Calculate as CalculateIcon } from '@mui/icons-material';
+import { Save as SaveIcon, Download as DownloadIcon } from '@mui/icons-material';
 import { ReactorFormInput } from '../types/reactor';
 
 export default function ReactorInputPage() {
-  const {inputs, updateInputs, calculateCosts, saveConfiguration, loadConfiguration, getSavedConfigurations } =
+  const {inputs, updateInputs, saveConfiguration, loadConfiguration, getSavedConfigurations } =
     useReactor();
   const navigate = useNavigate();
   const {assumptions, setCalculationResult } = useReactor();
@@ -507,6 +508,12 @@ export default function ReactorInputPage() {
           Save Configuration
         </Button>
       </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {error}
+        </Alert>
+      )}
 
       {/* Save Dialog */}
       <Dialog open={saveDialogOpen} onClose={() => setSaveDialogOpen(false)}>
