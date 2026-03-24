@@ -131,6 +131,7 @@ export interface CostItem {
 }
 
 export interface FabricationBreakdown {
+  [key: string]: CostItem;
   ss304_plate: CostItem;
   ss304_pipe: CostItem;
   ms_plate: CostItem;
