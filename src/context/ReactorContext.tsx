@@ -90,7 +90,6 @@ export const defaultInputs: ReactorFormInput = {
       type: 'Gate Anchor',
     },
     Limpet: {
-      moc: 'MS',
       od_diameter: 90,
       pitch_diameter: 120,
     },
@@ -254,14 +253,46 @@ export function ReactorProvider({ children }: { children: React.ReactNode }) {
 
     const grandTotal = fabricationCost + overheadCost + profitCost;
 
+    const broughtOutCost =
+      (spec.Motor.type === 'Flameproof' ? a.gearBoxCost + a.motorCost : 0) +
+      a.bearingCost +
+      (spec.MechanicalSeal.type === 'Single' ? a.singleSealCost :
+        spec.MechanicalSeal.type === 'Double' ? a.doubleSealCost : 0) +
+      a.flexibleCouplingCost +
+      a.toughenedGlassCost;
+
     setCalculationResult({
-      materialWeight,
-      costBreakdown,
-      totalMaterialCost,
-      totalLabourCost: ssLabourCost + msLabourCost,
-      overheadCost,
-      profitCost,
-      grandTotal,
+      success: true,
+      message: 'Calculated locally',
+      results: {
+        fabrication_breakdown: {
+          ss304_plate: { description: 'SS304 Plate', unit_rate: a.ss304PlateCost, quantity: materialWeight.ss304, unit_type: 'kg', total_cost: ss304PleateCost },
+          ss304_pipe: { description: 'SS304 Pipe', unit_rate: a.ss304PipeCost, quantity: materialWeight.ssPipe, unit_type: 'kg', total_cost: ss304PipeCost },
+          ms_plate: { description: 'MS Plate', unit_rate: a.msPlateCost, quantity: materialWeight.ms, unit_type: 'kg', total_cost: msPlateCost },
+          ms_pipe: { description: 'MS Pipe', unit_rate: a.msPipeCost, quantity: materialWeight.msPipe, unit_type: 'kg', total_cost: msPipeCost },
+          ss_labour: { description: 'SS Labour', unit_rate: a.ssLabourCost, quantity: materialWeight.ss304 + materialWeight.ssPipe, unit_type: 'kg', total_cost: ssLabourCost },
+          ms_labour: { description: 'MS Labour', unit_rate: a.msLabourCost, quantity: materialWeight.ms + materialWeight.msPipe, unit_type: 'kg', total_cost: msLabourCost },
+          limpet: { description: 'Limpet', unit_rate: null, quantity: null, unit_type: null, total_cost: spec.Shell.limpet ? 198503 * scalingFactor : 0 },
+          consumable: { description: 'Consumables', unit_rate: null, quantity: null, unit_type: null, total_cost: a.consumableCost },
+          hardware: { description: 'Hardware', unit_rate: null, quantity: null, unit_type: null, total_cost: a.hardwareCost },
+          brought_out: { description: 'Brought Out Components', unit_rate: null, quantity: null, unit_type: null, total_cost: broughtOutCost },
+          dish_pressing: { description: 'Dish Pressing', unit_rate: a.dishPressingCost, quantity: 972.2 * scalingFactor, unit_type: 'sqm', total_cost: a.dishPressingCost * 972.2 * scalingFactor },
+          machine_charges: { description: 'Machine Charges', unit_rate: null, quantity: null, unit_type: null, total_cost: a.machineCharges },
+          agitator_assembly: { description: 'Agitator Assembly', unit_rate: null, quantity: null, unit_type: null, total_cost: a.agitatorAssemblyCost },
+          acid_cleaning: { description: 'Acid Cleaning', unit_rate: a.acidCleaningCost, quantity: 278.73 * scalingFactor, unit_type: 'sqm', total_cost: a.acidCleaningCost * 278.73 * scalingFactor },
+          mirror_finish: { description: 'Mirror Finish', unit_rate: a.mirrorFinishCost, quantity: spec.Finish.type === 'Mirror' ? 26.18 * scalingFactor : 0, unit_type: 'sqm', total_cost: spec.Finish.type === 'Mirror' ? a.mirrorFinishCost * 26.18 * scalingFactor : 0 },
+          painting: { description: 'Painting', unit_rate: null, quantity: null, unit_type: null, total_cost: a.paintingCost },
+          local_transport: { description: 'Local Transport', unit_rate: null, quantity: null, unit_type: null, total_cost: a.localTransportCost },
+        },
+        summary: {
+          fabrication_cost: fabricationCost,
+          overhead_percentage: a.overheadPercent,
+          overhead_amount: overheadCost,
+          profit_percentage: a.profitPercent,
+          profit_amount: profitCost,
+          grand_total: grandTotal,
+        },
+      },
     });
   }, [inputs, assumptions]);
 
