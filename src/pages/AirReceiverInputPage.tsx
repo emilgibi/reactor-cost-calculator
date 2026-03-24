@@ -22,13 +22,14 @@ import {
   ListItemButton,
   FormControl,
   InputLabel,
+  Alert,
 } from '@mui/material';
 import { useAirReceiver } from '../context/AirReceiverContext';
-import { Save as SaveIcon, Download as DownloadIcon, Calculate as CalculateIcon } from '@mui/icons-material';
+import { Save as SaveIcon, Download as DownloadIcon } from '@mui/icons-material';
 import { AirReceiverFormInput } from '../types/airReceiver';
 
 export default function AirReceiverInputPage() {
-  const { inputs, updateInputs, calculateCosts, saveConfiguration, loadConfiguration, getSavedConfigurations } =
+  const { inputs, updateInputs, saveConfiguration, loadConfiguration, getSavedConfigurations } =
     useAirReceiver();
   const navigate = useNavigate();
   const {assumptions, setCalculationResult } = useAirReceiver();
@@ -379,6 +380,12 @@ export default function AirReceiverInputPage() {
           {loading ? 'Calculating...' : 'Calculate Costs'}
         </Button>
       </Box>
+
+      {errorPage && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {errorPage}
+        </Alert>
+      )}
 
       {/* Save Dialog */}
       <Dialog open={saveDialogOpen} onClose={() => setSaveDialogOpen(false)}>

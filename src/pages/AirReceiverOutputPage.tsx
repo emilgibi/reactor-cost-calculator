@@ -37,13 +37,11 @@ import { useAirReceiver } from '../context/AirReceiverContext';
 import { exportUnifiedPDF } from '../utils/pdfGenerator';
 import {
   getForecastFromBackend,
-  getDualMaterialForecast,
   transformYearlyForecast,
   transformMonthlyForecast,
   getLocalForecast,
   ForecastDataPoint,
   type MaterialInfo,
-  type DualMaterialForecastResponse,
 } from '../utils/api';
 const COLORS = ['#388e3c', '#1976d2', '#dc004e', '#f57c00', '#7b1fa2', '#0097a7'];
 

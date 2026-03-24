@@ -36,14 +36,12 @@ import { Download as PrintIcon, Edit as EditIcon } from '@mui/icons-material';
 import { useReactor } from '../context/ReactorContext';
 import { exportUnifiedPDF } from '../utils/pdfGenerator';
 import {
-  getForecastFromBackend,
   getDualMaterialForecast,
   transformYearlyForecast,
   transformMonthlyForecast,
   getLocalForecast,
   ForecastDataPoint,
   type MaterialInfo,
-  type DualMaterialForecastResponse,
 } from '../utils/api';
 
 const COLORS = ['#1976d2', '#dc004e', '#388e3c', '#f57c00', '#7b1fa2', '#0097a7', '#c62828', '#1565c0'];
@@ -351,9 +349,25 @@ export default function ReactorOutputPage() {
 
           {/* Tab 3: Forecast */}
           <TabPanel value={tabValue} index={2}>
-            <Typography variant="h6" sx={{ mb: 0.5, fontWeight: 600 }}>
-              5-Year Cost Forecast {materialInfo ? `(WPI-based ML prediction for ${materialInfo.material_name})` : '(WPI-based ML prediction)'}
-            </Typography>
+            <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                5-Year Cost Forecast {materialInfo ? `(WPI-based ML prediction for ${materialInfo.material_name})` : '(WPI-based ML prediction)'}
+              </Typography>
+              <select
+                value={forecastViewMode}
+                onChange={(e) => setForecastViewMode(e.target.value as 'monthly' | 'yearly')}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="yearly">📊 Yearly View (6 points)</option>
+                <option value="monthly">📈 Monthly View (60 points)</option>
+              </select>
+            </Box>
             {materialInfo && (
               <Typography variant="body2" sx={{ mb: 2, color: '#666' }}>
                 Base Cost: ₹{(materialInfo.base_cost / 100000).toFixed(2)}L | 
