@@ -146,8 +146,8 @@ export default function AirReceiverOutputPage() {
 
     // Fallback to local estimation
     const fb = calculationResult.fabrication_breakdown;
-    const ss304 = (fb['ss304_plate']?.total_cost || 0);
-    const ms = (fb['ms_plate']?.total_cost || 0);
+    const ss304 = (fb['ss304_plate']?.total_cost || 0) + (fb['ss304_pipe']?.total_cost || 0);
+    const ms = (fb['ms_plate']?.total_cost || 0) + (fb['ms_pipe']?.total_cost || 0);
     const labour = (fb['ss_labour']?.total_cost || 0) + (fb['ms_labour']?.total_cost || 0);
     return [
       { scenario: '+10% SS304', baseValue: base, scenarioValue: base + ss304 * 0.1 },
@@ -186,10 +186,11 @@ export default function AirReceiverOutputPage() {
     if (!calculationResult) return [];
     const fb = calculationResult.fabrication_breakdown;
     const groups: { [key: string]: number } = {
-      'SS304 Material': fb['ss304_plate']?.total_cost || 0,
-      'MS Material': fb['ms_plate']?.total_cost || 0,
+      'SS304 Material': (fb['ss304_plate']?.total_cost || 0) + (fb['ss304_pipe']?.total_cost || 0),
+      'MS Material': (fb['ms_plate']?.total_cost || 0) + (fb['ms_pipe']?.total_cost || 0),
       'Labour': (fb['ss_labour']?.total_cost || 0) + (fb['ms_labour']?.total_cost || 0),
-      'Services': (fb['dish_pressing']?.total_cost || 0) + (fb['machine_charges']?.total_cost || 0),
+      'Consumables': (fb['consumable']?.total_cost || 0),
+      'Services': (fb['dish_pressing']?.total_cost || 0) + (fb['machine_charges']?.total_cost || 0) + (fb['testing']?.total_cost || 0),
       'Overhead & Profit': calculationResult.summary.overhead_amount + calculationResult.summary.profit_amount,
       'Other': (fb['hardware']?.total_cost || 0) + (fb['painting']?.total_cost || 0) + (fb['local_transport']?.total_cost || 0),
     };
@@ -221,7 +222,9 @@ export default function AirReceiverOutputPage() {
   const summaryCards = [
     { label: 'Material Cost', value: formatCurrency(
         (calculationResult.fabrication_breakdown['ss304_plate']?.total_cost || 0) +
-        (calculationResult.fabrication_breakdown['ms_plate']?.total_cost || 0)
+        (calculationResult.fabrication_breakdown['ss304_pipe']?.total_cost || 0) +
+        (calculationResult.fabrication_breakdown['ms_plate']?.total_cost || 0) +
+        (calculationResult.fabrication_breakdown['ms_pipe']?.total_cost || 0)
       ) },
     { label: 'Labour Cost', value: formatCurrency(
         (calculationResult.fabrication_breakdown['ss_labour']?.total_cost || 0) +
@@ -376,10 +379,10 @@ export default function AirReceiverOutputPage() {
                   <strong>Material:</strong> {materialInfo.material_name}
                 </Typography>
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Base Cost:</strong> ₹{(materialInfo.base_cost / 100000).toFixed(2)}L
+                  <strong>Base Cost:</strong> {materialInfo.base_cost != null ? `₹${(materialInfo.base_cost / 100000).toFixed(2)}L` : 'N/A'}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Current WPI:</strong> {materialInfo.current_wpi.toFixed(2)}
+                  <strong>Current WPI:</strong> {materialInfo.current_wpi != null ? materialInfo.current_wpi.toFixed(2) : 'N/A'}
                 </Typography>
               </Box>
             )}
