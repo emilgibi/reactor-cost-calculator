@@ -29,7 +29,7 @@ export default function AssumptionsPage() {
 
   const handleApply = () => {
     updateAssumptions(localAssumptions);
-    calculateCosts;
+    calculateCosts();
     setToastOpen(true);
     setTimeout(() => navigate('/reactor/output'), 1200);
   };
