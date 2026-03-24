@@ -38,11 +38,12 @@ import { exportUnifiedPDF } from '../utils/pdfGenerator';
 import {
   getDualMaterialForecast,
   transformYearlyForecast,
-  transformMonthlyForecast,
   getLocalForecast,
   ForecastDataPoint,
   type MaterialInfo,
 } from '../utils/api';
+
+type ForecastView = 'all' | '2026' | '2027' | '2028' | '2029' | '2030';
 
 const COLORS = ['#1976d2', '#dc004e', '#388e3c', '#f57c00', '#7b1fa2', '#0097a7', '#c62828', '#1565c0'];
 
@@ -67,7 +68,7 @@ export default function ReactorOutputPage() {
   const [materialInfo, setMaterialInfo] = useState<MaterialInfo | null>(null);
   const [forecastLoading, setForecastLoading] = useState(false);
   const [forecastError, setForecastError] = useState<string | null>(null);
-  const [forecastViewMode, setForecastViewMode] = useState<'monthly' | 'yearly'>('yearly');
+  const [forecastViewMode, setForecastViewMode] = useState<ForecastView>('all');
   const [costForecastDataSecondary, setCostForecastDataSecondary] = useState<ForecastDataPoint[]>([]);
 
   // For Reactor with Shell + MS Limpet
@@ -79,34 +80,44 @@ export default function ReactorOutputPage() {
     }
 
     const shellMaterial = inputs.Specification?.Shell?.moc || 'SS304';
-    const baseCost = calculationResult.results.summary.grand_total;
+    const fb = calculationResult.results.fabrication_breakdown;
+
+    // Calculate material costs from fabrication breakdown
+    const shellMaterialCost = shellMaterial === 'SS304'
+      ? (fb.ss304_plate?.total_cost || 0) + (fb.ss304_pipe?.total_cost || 0)
+      : (fb.ms_plate?.total_cost || 0) + (fb.ms_pipe?.total_cost || 0);
+
+    // Limpet coil is always MS; avoid double-counting when shell is also MS
+    const limpetMaterialCost = shellMaterial !== 'MS'
+      ? (fb.ms_plate?.total_cost || 0) + (fb.ms_pipe?.total_cost || 0)
+      : 0;
+
+    const totalMaterialCost = shellMaterialCost + limpetMaterialCost;
+
+    const shellPct = totalMaterialCost > 0 ? (shellMaterialCost / totalMaterialCost) * 100 : 70;
+    const limpetPct = totalMaterialCost > 0 ? (limpetMaterialCost / totalMaterialCost) * 100 : 30;
+
     let cancelled = false;
 
     setForecastLoading(true);
     setForecastError(null);
 
-    // Fetch DUAL material forecast
+    // Fetch DUAL material forecast (always yearly; filtering done on frontend)
     getDualMaterialForecast(
-      baseCost,
+      totalMaterialCost,
       shellMaterial,
-      forecastViewMode,
-      70, // Shell is 70% of cost
-      30  // MS Limpet is 30% of cost
+      shellPct,
+      limpetPct
     ).then((response) => {
       if (cancelled) return;
 
       if (response) {
         // Transform primary material (Shell)
-        const primaryTransformed =
-          forecastViewMode === 'monthly'
-            ? transformMonthlyForecast(response.primary_material)
-            : transformYearlyForecast(response.primary_material);
+        const primaryTransformed = transformYearlyForecast(response.primary_material);
 
-        // Transform secondary material (MS)
+        // Transform secondary material (MS Limpet)
         const secondaryTransformed = response.secondary_material
-          ? forecastViewMode === 'monthly'
-            ? transformMonthlyForecast(response.secondary_material)
-            : transformYearlyForecast(response.secondary_material)
+          ? transformYearlyForecast(response.secondary_material)
           : [];
 
         setCostForecastData(primaryTransformed);
@@ -119,7 +130,7 @@ export default function ReactorOutputPage() {
           base_cost: response.primary_material.base_cost,
         });
       } else {
-        setCostForecastData(getLocalForecast(baseCost, assumptions.annualInflationRate, forecastViewMode === 'monthly'));
+        setCostForecastData(getLocalForecast(totalMaterialCost, assumptions.annualInflationRate));
         setForecastError('Backend unavailable – showing estimated forecast.');
       }
 
@@ -129,7 +140,29 @@ export default function ReactorOutputPage() {
     return () => {
       cancelled = true;
     };
-  }, [calculationResult, inputs, assumptions.annualInflationRate, forecastViewMode]);
+  }, [calculationResult, inputs, assumptions.annualInflationRate]);
+
+  // Merge primary (shell) and secondary (limpet) forecast data into a single dataset with distinct keys
+  const mergedForecastData = useMemo(() => {
+    if (costForecastData.length === 0) {
+      return costForecastDataSecondary.map((d) => ({
+        ...d,
+        shellCost: null as number | null,
+        limpetCost: d.cost as number | null,
+      }));
+    }
+    return costForecastData.map((primary, i) => ({
+      ...primary,
+      shellCost: primary.cost as number | null,
+      limpetCost: (costForecastDataSecondary[i]?.cost ?? null) as number | null,
+    }));
+  }, [costForecastData, costForecastDataSecondary]);
+
+  // Filter merged data based on selected year view
+  const displayForecastData = useMemo(() => {
+    if (forecastViewMode === 'all') return mergedForecastData;
+    return mergedForecastData.filter((d) => d.date === forecastViewMode);
+  }, [mergedForecastData, forecastViewMode]);
 
   const commodityScenarioData = useMemo(() => {
     if (!calculationResult) return [];
@@ -379,7 +412,7 @@ export default function ReactorOutputPage() {
               </Typography>
               <select
                 value={forecastViewMode}
-                onChange={(e) => setForecastViewMode(e.target.value as 'monthly' | 'yearly')}
+                onChange={(e) => setForecastViewMode(e.target.value as ForecastView)}
                 style={{
                   padding: '8px 12px',
                   borderRadius: '4px',
@@ -388,13 +421,17 @@ export default function ReactorOutputPage() {
                   cursor: 'pointer',
                 }}
               >
-                <option value="yearly">📊 Yearly View (6 points)</option>
-                <option value="monthly">📈 Monthly View (60 points)</option>
+                <option value="all">All 5 Years</option>
+                <option value="2026">2026</option>
+                <option value="2027">2027</option>
+                <option value="2028">2028</option>
+                <option value="2029">2029</option>
+                <option value="2030">2030</option>
               </select>
             </Box>
             {materialInfo && (
               <Typography variant="body2" sx={{ mb: 2, color: '#666' }}>
-                Base Cost: ₹{((materialInfo.base_cost ?? 0) / 100000).toFixed(2)}L | 
+                Material Cost: ₹{((materialInfo.base_cost ?? 0) / 100000).toFixed(2)}L | 
                 Material: {materialInfo.material_type} | 
                 Current WPI: {(materialInfo.current_wpi ?? 0).toFixed(2)}
               </Typography>
@@ -412,12 +449,43 @@ export default function ReactorOutputPage() {
                 </Box>
                 <Skeleton variant="rectangular" height={350} />
               </Box>
+            ) : forecastViewMode !== 'all' && displayForecastData.length > 0 ? (
+              /* Single-year summary card */
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                {displayForecastData.map((point) => (
+                  <Card key={point.date} sx={{ minWidth: 220, borderLeft: '4px solid #1976d2' }}>
+                    <CardContent>
+                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase' }}>
+                        {point.year} ({point.date})
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: '#1976d2', mt: 0.5 }}>
+                        Shell: {point.shellCost != null ? formatCurrency(point.shellCost) : 'N/A'}
+                      </Typography>
+                      {point.limpetCost != null && (
+                        <Typography variant="body1" sx={{ fontWeight: 600, color: '#dc004e' }}>
+                          Limpet: {formatCurrency(point.limpetCost)}
+                        </Typography>
+                      )}
+                      {point.wpiIndex != null && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                          WPI Index: {point.wpiIndex.toFixed(2)}
+                        </Typography>
+                      )}
+                      {point.costChange != null && (
+                        <Typography variant="body2" color="text.secondary">
+                          Change from base: {point.costChange > 0 ? '+' : ''}{point.costChange.toFixed(2)}%
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </Box>
             ) : (
               <div>
                 <ResponsiveContainer width="100%" height={350}>
-                  <LineChart data={costForecastData}>
+                  <LineChart data={displayForecastData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey={forecastViewMode === 'monthly' ? 'date' : 'year'} />
+                    <XAxis dataKey="year" />
                     <YAxis tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`} />
                     <Tooltip formatter={(v) => formatCurrency(Number(v))} />
                     <Legend />
@@ -425,22 +493,23 @@ export default function ReactorOutputPage() {
                     {/* Primary line: Shell Material */}
                     <Line
                       type="monotone"
-                      dataKey="cost"
+                      dataKey="shellCost"
                       stroke="#1976d2"
                       strokeWidth={2}
                       dot={{ r: 4 }}
-                      name={`Shell (${materialInfo?.material_type})`}
+                      connectNulls={false}
+                      name={`Shell (${materialInfo?.material_type ?? ''})`}
                     />
                     
                     {/* Secondary line: MS Limpet */}
                     {costForecastDataSecondary.length > 0 && (
                       <Line
                         type="monotone"
-                        dataKey="cost"
-                        data={costForecastDataSecondary}
+                        dataKey="limpetCost"
                         stroke="#dc004e"
                         strokeWidth={2}
                         dot={{ r: 4 }}
+                        connectNulls={false}
                         name="Limpet Coil (MS)"
                       />
                     )}

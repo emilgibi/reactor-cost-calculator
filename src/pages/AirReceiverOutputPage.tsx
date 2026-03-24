@@ -38,11 +38,12 @@ import { exportUnifiedPDF } from '../utils/pdfGenerator';
 import {
   getForecastFromBackend,
   transformYearlyForecast,
-  transformMonthlyForecast,
   getLocalForecast,
   ForecastDataPoint,
   type MaterialInfo,
 } from '../utils/api';
+
+type ForecastView = 'all' | '2026' | '2027' | '2028' | '2029' | '2030';
 const COLORS = ['#388e3c', '#1976d2', '#dc004e', '#f57c00', '#7b1fa2', '#0097a7'];
 
 function formatCurrency(val: number) {
@@ -66,7 +67,7 @@ export default function AirReceiverOutputPage() {
   const [materialInfo, setMaterialInfo] = useState<MaterialInfo | null>(null);
   const [forecastLoading, setForecastLoading] = useState(false);
   const [forecastError, setForecastError] = useState<string | null>(null);
-  const [forecastViewMode, setForecastViewMode] = useState<'monthly' | 'yearly'>('yearly');
+  const [forecastViewMode, setForecastViewMode] = useState<ForecastView>('all');
 
   useEffect(() => {
     if (!calculationResult) {
@@ -75,28 +76,29 @@ export default function AirReceiverOutputPage() {
     }
 
     const materialType = inputs.Specification?.Shell?.moc || 'MS';
-    const baseCost = calculationResult.summary.grand_total;
+    const fb = calculationResult.fabrication_breakdown;
+
+    // Calculate material cost from fabrication breakdown (not grand total)
+    const materialCost =
+      (fb['ms_plate']?.total_cost || 0) + (fb['ms_pipe']?.total_cost || 0) +
+      (fb['ss304_plate']?.total_cost || 0) + (fb['ss304_pipe']?.total_cost || 0);
+
     let cancelled = false;
 
     setForecastLoading(true);
     setForecastError(null);
 
-    // Fetch forecast with view mode
+    // Fetch forecast with material cost (always yearly; filtering done on frontend)
     getForecastFromBackend(
-      baseCost,
+      materialCost,
       materialType,
       'MS',
-      false, // not dual material for air receiver
-      forecastViewMode
+      false // not dual material for air receiver
     ).then((response) => {
       if (cancelled) return;
 
       if (response && response.primary_material) {
-        // Transform based on view mode
-        const transformed =
-          forecastViewMode === 'monthly'
-            ? transformMonthlyForecast(response.primary_material)
-            : transformYearlyForecast(response.primary_material);
+        const transformed = transformYearlyForecast(response.primary_material);
 
         setCostForecastData(transformed);
         setMaterialInfo({
@@ -107,11 +109,7 @@ export default function AirReceiverOutputPage() {
         });
       } else {
         setCostForecastData(
-          getLocalForecast(
-            baseCost,
-            assumptions.annualInflationRate,
-            forecastViewMode === 'monthly'
-          )
+          getLocalForecast(materialCost, assumptions.annualInflationRate)
         );
         setForecastError('Backend unavailable – showing estimated forecast.');
       }
@@ -122,13 +120,13 @@ export default function AirReceiverOutputPage() {
     return () => {
       cancelled = true;
     };
-  }, [calculationResult, inputs, assumptions.annualInflationRate, forecastViewMode]);
+  }, [calculationResult, inputs, assumptions.annualInflationRate]);
 
-  // ✅ NEW: Handle view mode change
-  const handleForecastViewChange = async (mode: 'monthly' | 'yearly') => {
-    setForecastViewMode(mode);
-    // The useEffect will be triggered automatically
-  };
+  // Filter forecast data based on selected year view
+  const displayForecastData = useMemo(() => {
+    if (forecastViewMode === 'all') return costForecastData;
+    return costForecastData.filter((d) => d.date === forecastViewMode);
+  }, [costForecastData, forecastViewMode]);
 
   const commodityScenarioData = useMemo(() => {
     if (!calculationResult) return [];
@@ -351,14 +349,11 @@ export default function AirReceiverOutputPage() {
                 5-Year Cost Forecast (WPI-based ML prediction)
               </Typography>
 
-              {/* ✅ VIEW MODE DROPDOWN */}
+              {/* VIEW MODE DROPDOWN */}
               <select
                 id="view-mode"
                 value={forecastViewMode}
-                onChange={(e) => {
-                  setForecastViewMode(e.target.value as 'monthly' | 'yearly');
-                  handleForecastViewChange(e.target.value as 'monthly' | 'yearly');
-                }}
+                onChange={(e) => setForecastViewMode(e.target.value as ForecastView)}
                 style={{
                   padding: '8px 12px',
                   borderRadius: '4px',
@@ -367,8 +362,12 @@ export default function AirReceiverOutputPage() {
                   cursor: 'pointer',
                 }}
               >
-                <option value="yearly">📊 Yearly View (6 points)</option>
-                <option value="monthly">📈 Monthly View (60 points)</option>
+                <option value="all">All 5 Years</option>
+                <option value="2026">2026</option>
+                <option value="2027">2027</option>
+                <option value="2028">2028</option>
+                <option value="2029">2029</option>
+                <option value="2030">2030</option>
               </select>
             </Box>
 
@@ -379,7 +378,7 @@ export default function AirReceiverOutputPage() {
                   <strong>Material:</strong> {materialInfo.material_name}
                 </Typography>
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Base Cost:</strong> {materialInfo.base_cost != null ? `₹${(materialInfo.base_cost / 100000).toFixed(2)}L` : 'N/A'}
+                  <strong>Material Cost:</strong> {materialInfo.base_cost != null ? `₹${(materialInfo.base_cost / 100000).toFixed(2)}L` : 'N/A'}
                 </Typography>
                 <Typography variant="body2">
                   <strong>Current WPI:</strong> {materialInfo.current_wpi != null ? materialInfo.current_wpi.toFixed(2) : 'N/A'}
@@ -405,22 +404,43 @@ export default function AirReceiverOutputPage() {
                 </Box>
                 <Skeleton variant="rectangular" height={350} />
               </Box>
+            ) : forecastViewMode !== 'all' && displayForecastData.length > 0 ? (
+              /* ========== SINGLE-YEAR SUMMARY CARD ========== */
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                {displayForecastData.map((point) => (
+                  <Card key={point.date} sx={{ minWidth: 220, borderLeft: '4px solid #388e3c' }}>
+                    <CardContent>
+                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase' }}>
+                        {point.year} ({point.date})
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: '#388e3c', mt: 0.5 }}>
+                        {formatCurrency(point.cost)}
+                      </Typography>
+                      {point.wpiIndex != null && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                          WPI Index: {point.wpiIndex.toFixed(2)}
+                        </Typography>
+                      )}
+                      {point.costChange != null && (
+                        <Typography variant="body2" color="text.secondary">
+                          Change from base: {point.costChange > 0 ? '+' : ''}{point.costChange.toFixed(2)}%
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </Box>
             ) : (
               /* ========== CHART ========== */
               <ResponsiveContainer width="100%" height={350}>
-                <LineChart data={costForecastData}>
+                <LineChart data={displayForecastData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey={forecastViewMode === 'monthly' ? 'date' : 'year'}
-                    angle={forecastViewMode === 'monthly' ? -45 : 0}
-                    textAnchor={forecastViewMode === 'monthly' ? 'end' : 'middle'}
-                    height={forecastViewMode === 'monthly' ? 80 : 30}
-                  />
+                  <XAxis dataKey="year" />
                   <YAxis
                     tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`}
                     domain={(() => {
-                      if (!costForecastData.length) return ['dataMin - 5%', 'dataMax + 5%'];
-                      const costs = costForecastData.map((d) => d.cost);
+                      if (!displayForecastData.length) return ['dataMin - 5%', 'dataMax + 5%'];
+                      const costs = displayForecastData.map((d) => d.cost);
                       const minCost = Math.min(...costs);
                       const maxCost = Math.max(...costs);
                       const range = maxCost - minCost;
@@ -428,12 +448,7 @@ export default function AirReceiverOutputPage() {
                       return [minCost - padding, maxCost + padding];
                     })()}
                   />
-                  <Tooltip
-                    formatter={(v) => formatCurrency(Number(v))}
-                    labelFormatter={(label) =>
-                      forecastViewMode === 'monthly' ? `${label}` : `${label}`
-                    }
-                  />
+                  <Tooltip formatter={(v) => formatCurrency(Number(v))} />
                   <Legend />
                   <Line
                     type="monotone"
