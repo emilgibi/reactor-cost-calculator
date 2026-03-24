@@ -45,6 +45,21 @@ export default function AirReceiverInputPage() {
     updateInputs({ Specification: { ...spec, ...partial } });
   };
 
+    const parseBackendError = (errData: any): string | null => {
+      if (!errData) return null;
+      if (typeof errData.detail === 'string') return errData.detail;
+      if (Array.isArray(errData.detail)) {
+        return errData.detail
+          .map((e: any) => {
+            const loc = Array.isArray(e.loc) ? e.loc.join(' → ') : '';
+            return loc ? `${loc}: ${e.msg}` : e.msg;
+          })
+          .join('; ');
+      }
+      if (typeof errData === 'string') return errData;
+      return JSON.stringify(errData);
+    };
+
     const handleCalculate = async () => {
       try {
         setLoading(true);
@@ -56,13 +71,13 @@ export default function AirReceiverInputPage() {
           Specification: {
             Shell: {
               moc: inputs.Specification?.Shell?.moc || 'CS',
-              diameter: inputs.Specification?.Shell?.diameter || 2200,
+              width: inputs.Specification?.Shell?.diameter || 2200,
               height: inputs.Specification?.Shell?.height || 4500,
               thickness: inputs.Specification?.Shell?.thickness || 12,
             },
             Dish: {
               moc: inputs.Specification?.Dish?.moc || 'CS',
-              diameter: inputs.Specification?.Dish?.diameter || 2200,
+              width: inputs.Specification?.Dish?.diameter || 2200,
               thickness: inputs.Specification?.Dish?.thickness || 8,
             },
             Finish: {
@@ -80,14 +95,14 @@ export default function AirReceiverInputPage() {
           },
           Assumptions: {
             MaterialCosts: {
-              msPlateCost: assumptions.msPlateCost || 80,
-              msPipeCost: assumptions.msPipeCost || 120,
+              MS_Plate: assumptions.msPlateCost || 80,
+              MS_Pipe: assumptions.msPipeCost || 120,
             },
             LabourCosts: {
-              msLabourCost: assumptions.msLabourCost || 30,
+              MS_Labour: assumptions.msLabourCost || 30,
             },
             DensityValues: {
-              msDensity: assumptions.msDensity || 7.86,
+              MS: assumptions.msDensity || 7.86,
             },
             FinancialPercentages: {
               overhead: assumptions.overheadPercent || 10,
@@ -112,7 +127,9 @@ export default function AirReceiverInputPage() {
         });
 
         if (!response.ok) {
-          setErrorPage('Calculation failed. Please check your inputs.');
+          const errData = await response.json().catch(() => null);
+          const errMsg = parseBackendError(errData) || `Request failed with status ${response.status}`;
+          setErrorPage(errMsg);
           setLoading(false);
           return;
         }
@@ -123,7 +140,7 @@ export default function AirReceiverInputPage() {
           setCalculationResult(result.results);
           navigate('/air-receiver/output');
         } else {
-          setErrorPage(result.error || 'Calculation failed');
+          setErrorPage(result.error && typeof result.error === 'string' ? result.error : result.error ? JSON.stringify(result.error) : 'Calculation failed');
         }
       } catch (err: any) {
         setErrorPage('Error: ' + (err.message || 'Unknown error'));

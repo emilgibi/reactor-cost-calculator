@@ -48,63 +48,109 @@ export default function ReactorInputPage() {
     updateInputs({ Specification: { ...spec, ...partial } });
   };
 
+  const parseBackendError = (errData: any): string | null => {
+    if (!errData) return null;
+    if (typeof errData.detail === 'string') return errData.detail;
+    if (Array.isArray(errData.detail)) {
+      return errData.detail
+        .map((e: any) => {
+          const loc = Array.isArray(e.loc) ? e.loc.join(' → ') : '';
+          return loc ? `${loc}: ${e.msg}` : e.msg;
+        })
+        .join('; ');
+    }
+    if (typeof errData === 'string') return errData;
+    return JSON.stringify(errData);
+  };
+
   const handleCalculate = async () => {
     try {
       setLoading(true);
       setError(null);
       
       const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
-      
+      const s = inputs.Specification;
+
+      const payload = {
+        Kl: 10,
+        Specification: {
+          Shell: {
+            moc: s.Shell.moc,
+            width: s.Shell.diameter,
+            height: s.Shell.height,
+            thickness: s.Shell.thickness,
+            limpet: s.Shell.limpet,
+          },
+          Dish: {
+            moc: s.Dish.moc,
+            width: s.Dish.diameter,
+            thickness: s.Dish.thickness,
+          },
+          MechanicalSeal: { type: s.MechanicalSeal.type },
+          Motor: { type: s.Motor.type },
+          Shaft: {
+            moc: s.Shaft.moc,
+            width: s.Shaft.diameter,
+          },
+          Blade: { type: s.Blade.type },
+          Limpet: {
+            od: s.Limpet.od_diameter,
+            pitch: s.Limpet.pitch_diameter,
+          },
+          Finish: { type: s.Finish.type },
+        },
+        NozzleSchedule: inputs.NozzleSchedule,
+        Assumptions: {
+          MaterialCosts: {
+            SS304_Plate: assumptions.ss304PlateCost,
+            SS304_Pipe: assumptions.ss304PipeCost,
+            MS_Plate: assumptions.msPlateCost,
+            MS_Pipe: assumptions.msPipeCost,
+          },
+          LabourCosts: {
+            SS304_Labour: assumptions.ssLabourCost,
+            MS_Labour: assumptions.msLabourCost,
+          },
+          DensityValues: {
+            SS304: assumptions.ss304Density,
+            SS316: assumptions.ss304Density, // SS316 has the same density as SS304 (~8.0 g/cm³)
+            MS: assumptions.msDensity,
+          },
+          BroughtOutComponents: {
+            gearBox: assumptions.gearBoxCost,
+            motor: assumptions.motorCost,
+            bearing: assumptions.bearingCost,
+            singleMechanicalSeal: assumptions.singleSealCost,
+            flexibleCoupling: assumptions.flexibleCouplingCost,
+            toughenedGlass: assumptions.toughenedGlassCost,
+          },
+          FinancialPercentages: {
+            overhead: assumptions.overheadPercent,
+            profit: assumptions.profitPercent,
+            inflationRate: assumptions.annualInflationRate,
+          },
+          OtherCosts: {
+            dishPressingPerSqm: assumptions.dishPressingCost,
+            machineCharges: assumptions.machineCharges,
+            agitatorAssembly: assumptions.agitatorAssemblyCost,
+            acidCleaningPerSqm: assumptions.acidCleaningCost,
+            mirrorFinishPerSqm: assumptions.mirrorFinishCost,
+            paintingLumpsum: assumptions.paintingCost,
+            localTransportLumpsum: assumptions.localTransportCost,
+          },
+        },
+      };
+
       const response = await fetch(`${backendUrl}/api/kl-reactor-calculation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          Kl: 10, 
-          Specification: inputs.Specification,
-          NozzleSchedule: inputs.NozzleSchedule,
-          Assumptions: {
-            MaterialCosts: {
-              SS304_Plate: assumptions.ss304PlateCost,
-              SS304_Pipe: assumptions.ss304PipeCost,
-              MS_Plate: assumptions.msPlateCost,
-              MS_Pipe: assumptions.msPipeCost,
-            },
-            LabourCosts: {
-              ssLabourCost: assumptions.ssLabourCost,
-              msLabourCost: assumptions.msLabourCost,
-            },
-            DensityValues: {
-              SS304: assumptions.ss304Density,
-              MS: assumptions.msDensity,
-            },
-            BroughtOutComponents: {
-              gearBox: assumptions.gearBoxCost,
-              motor: assumptions.motorCost,
-              bearing: assumptions.bearingCost,
-              singleMechanicalSeal: assumptions.singleSealCost,
-              flexibleCoupling: assumptions.flexibleCouplingCost,
-              toughenedGlass: assumptions.toughenedGlassCost,
-            },
-            FinancialPercentages: {
-              overhead: assumptions.overheadPercent,
-              profit: assumptions.profitPercent,
-              inflationRate: assumptions.annualInflationRate,
-            },
-            OtherCosts: {
-              dishPressingPerSqm: assumptions.dishPressingCost,
-              machineCharges: assumptions.machineCharges,
-              agitatorAssembly: assumptions.agitatorAssemblyCost,
-              acidCleaningPerSqm: assumptions.acidCleaningCost,
-              mirrorFinishPerSqm: assumptions.mirrorFinishCost,
-              paintingLumpsum: assumptions.paintingCost,
-              localTransportLumpsum: assumptions.localTransportCost,
-            },
-          },
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        setError('Calculation failed. Please check your inputs.');
+        const errData = await response.json().catch(() => null);
+        const errMsg = parseBackendError(errData) || `Request failed with status ${response.status}`;
+        setError(errMsg);
         setLoading(false);
         return;
       }
@@ -115,7 +161,7 @@ export default function ReactorInputPage() {
         setCalculationResult(result.results);
         navigate('/reactor/output');
       } else {
-        setError(result.error || 'Calculation failed');
+        setError(result.error && typeof result.error === 'string' ? result.error : result.error ? JSON.stringify(result.error) : 'Calculation failed');
       }
     } catch (err: any) {
       setError('Error: ' + (err.message || 'Unknown error'));
