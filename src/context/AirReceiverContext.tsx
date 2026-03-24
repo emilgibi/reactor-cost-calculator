@@ -44,7 +44,7 @@ interface AirReceiverContextType {
   calculationResult: AirReceiverCalculationResult | null;
   updateInputs: (newInputs: Partial<AirReceiverFormInput>) => void;
   updateAssumptions: (newAssumptions: Partial<AirReceiverAssumptions>) => void;
-  calculateCosts: () => void;
+  calculateCosts: (assumptionsOverride?: AirReceiverAssumptions) => void;
   setCalculationResult: (result: AirReceiverCalculationResult | null) => void;
   saveConfiguration: (name: string) => void;
   loadConfiguration: (name: string) => void;
@@ -134,7 +134,8 @@ export function AirReceiverProvider({ children }: { children: React.ReactNode })
     setAssumptions((prev) => ({ ...prev, ...newAssumptions }));
   }, []);
 
-  const calculateCosts = useCallback(() => {
+  const calculateCosts = useCallback((assumptionsOverride?: AirReceiverAssumptions) => {
+    const a = assumptionsOverride || assumptions;
     const spec = inputs.Specification;
     const diameter = spec.Shell.diameter / 1000; // convert mm to m
     const height = spec.Shell.height / 1000;
@@ -146,9 +147,9 @@ export function AirReceiverProvider({ children }: { children: React.ReactNode })
     const dishArea = 2 * pi * Math.pow(diameter / 2, 2) * 0.7; // approx dish area
 
     const isSS = spec.Shell.moc.includes('SS');
-    const density = isSS ? assumptions.ss304Density * 1000 : assumptions.msDensity * 1000;
-    const plateCost = isSS ? assumptions.ss304PlateCost : assumptions.msPlateCost;
-    const labourCost = isSS ? assumptions.ssLabourCost : assumptions.msLabourCost;
+    const density = isSS ? a.ss304Density * 1000 : a.msDensity * 1000;
+    const plateCost = isSS ? a.ss304PlateCost : a.msPlateCost;
+    const labourCost = isSS ? a.ssLabourCost : a.msLabourCost;
 
     const shellWeight = shellArea * thickness * density;
     const dishWeight = dishArea * (spec.Dish.thickness / 1000) * density;
@@ -164,42 +165,42 @@ export function AirReceiverProvider({ children }: { children: React.ReactNode })
 
     const materialCost = totalWeight * plateCost;
     const labourTotal = totalWeight * labourCost;
-    const dishPressingTotal = assumptions.dishPressingPerSqm * dishWeight;
+    const dishPressingTotal = a.dishPressingPerSqm * dishWeight;
 
     const fabrication_breakdown: { [key: string]: AirReceiverCostItem } = {};
 
     if (isSS) {
-      fabrication_breakdown['ss304_plate'] = mkItem('SS304 Plate', assumptions.ss304PlateCost, totalWeight, 'kg', materialCost);
-      fabrication_breakdown['ss_labour'] = mkItem('SS Labour', assumptions.ssLabourCost, totalWeight, 'kg', labourTotal);
+      fabrication_breakdown['ss304_plate'] = mkItem('SS304 Plate', a.ss304PlateCost, totalWeight, 'kg', materialCost);
+      fabrication_breakdown['ss_labour'] = mkItem('SS Labour', a.ssLabourCost, totalWeight, 'kg', labourTotal);
     } else {
-      fabrication_breakdown['ms_plate'] = mkItem('MS Plate', assumptions.msPlateCost, totalWeight, 'kg', materialCost);
-      fabrication_breakdown['ms_labour'] = mkItem('MS Labour', assumptions.msLabourCost, totalWeight, 'kg', labourTotal);
+      fabrication_breakdown['ms_plate'] = mkItem('MS Plate', a.msPlateCost, totalWeight, 'kg', materialCost);
+      fabrication_breakdown['ms_labour'] = mkItem('MS Labour', a.msLabourCost, totalWeight, 'kg', labourTotal);
     }
 
-    fabrication_breakdown['dish_pressing'] = mkItem('Dish Pressing', assumptions.dishPressingPerSqm, dishWeight, 'kg', dishPressingTotal);
-    fabrication_breakdown['machine_charges'] = mkItem('Machine Charges', null, null, null, assumptions.machineCharges);
-    fabrication_breakdown['hardware'] = mkItem('Hardware', null, null, null, assumptions.hardwareCost);
-    fabrication_breakdown['painting'] = mkItem('Painting', null, null, null, assumptions.paintingCost);
-    fabrication_breakdown['local_transport'] = mkItem('Local Transport', null, null, null, assumptions.localTransportCost);
+    fabrication_breakdown['dish_pressing'] = mkItem('Dish Pressing', a.dishPressingPerSqm, dishWeight, 'kg', dishPressingTotal);
+    fabrication_breakdown['machine_charges'] = mkItem('Machine Charges', null, null, null, a.machineCharges);
+    fabrication_breakdown['hardware'] = mkItem('Hardware', null, null, null, a.hardwareCost);
+    fabrication_breakdown['painting'] = mkItem('Painting', null, null, null, a.paintingCost);
+    fabrication_breakdown['local_transport'] = mkItem('Local Transport', null, null, null, a.localTransportCost);
 
     const fabricationCost =
       materialCost +
       labourTotal +
       dishPressingTotal +
-      assumptions.machineCharges +
-      assumptions.hardwareCost +
-      assumptions.paintingCost +
-      assumptions.localTransportCost;
+      a.machineCharges +
+      a.hardwareCost +
+      a.paintingCost +
+      a.localTransportCost;
 
-    const overheadAmount = (fabricationCost * assumptions.overheadPercent) / 100;
-    const profitAmount = ((fabricationCost + overheadAmount) * assumptions.profitPercent) / 100;
+    const overheadAmount = (fabricationCost * a.overheadPercent) / 100;
+    const profitAmount = ((fabricationCost + overheadAmount) * a.profitPercent) / 100;
     const grandTotal = fabricationCost + overheadAmount + profitAmount;
 
     const summary: AirReceiverCostSummary = {
       fabrication_cost: fabricationCost,
-      overhead_percentage: assumptions.overheadPercent,
+      overhead_percentage: a.overheadPercent,
       overhead_amount: overheadAmount,
-      profit_percentage: assumptions.profitPercent,
+      profit_percentage: a.profitPercent,
       profit_amount: profitAmount,
       grand_total: grandTotal,
     };
