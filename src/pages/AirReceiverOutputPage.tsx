@@ -79,9 +79,14 @@ export default function AirReceiverOutputPage() {
     const fb = calculationResult.fabrication_breakdown;
 
     // Calculate material cost from fabrication breakdown (not grand total)
-    const materialCost =
-      (fb['ms_plate']?.total_cost || 0) + (fb['ms_pipe']?.total_cost || 0) +
-      (fb['ss304_plate']?.total_cost || 0) + (fb['ss304_pipe']?.total_cost || 0);
+    const rawMaterialCost =
+      (fb.ms_plate?.total_cost || 0) + (fb.ms_pipe?.total_cost || 0) +
+      (fb.ss304_plate?.total_cost || 0) + (fb.ss304_pipe?.total_cost || 0);
+
+    // Guard: if plate/pipe breakdown sums to 0, fall back to grand_total
+    const materialCost = rawMaterialCost > 0
+      ? rawMaterialCost
+      : calculationResult.summary.grand_total;
 
     let cancelled = false;
 
