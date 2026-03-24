@@ -132,6 +132,61 @@ export async function getDualMaterialForecast(
 }
 
 /**
+ * Fetch dual material forecast by making TWO independent backend calls —
+ * one for the shell material and one for the limpet (MS).
+ * This avoids the percentage-split logic on the backend that can produce
+ * identical costs when either base_cost is zero.
+ */
+export async function getDualMaterialForecastSplit(
+  shellCost: number,
+  shellMaterial: string,
+  limpetCost: number,
+): Promise<{ shell: MaterialForecast | null; limpet: MaterialForecast | null }> {
+  try {
+    const [shellRes, limpetRes] = await Promise.all([
+      fetch(`${backendUrl}/api/forecast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          base_cost: shellCost,
+          material_type: shellMaterial,
+          include_secondary_material: false,
+          secondary_material_type: 'MS',
+          primary_cost_percentage: 100,
+          secondary_cost_percentage: 0,
+          view_mode: 'yearly',
+          months_ahead: 60,
+        }),
+      }),
+      fetch(`${backendUrl}/api/forecast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          base_cost: limpetCost,
+          material_type: 'MS',
+          include_secondary_material: false,
+          primary_cost_percentage: 100,
+          secondary_cost_percentage: 0,
+          view_mode: 'yearly',
+          months_ahead: 60,
+        }),
+      }),
+    ]);
+
+    const shellData  = shellRes.ok  ? await shellRes.json()  : null;
+    const limpetData = limpetRes.ok ? await limpetRes.json() : null;
+
+    return {
+      shell:  shellData?.primary_material  ?? null,
+      limpet: limpetData?.primary_material ?? null,
+    };
+  } catch (error) {
+    console.error('Error fetching split dual material forecast:', error);
+    return { shell: null, limpet: null };
+  }
+}
+
+/**
  * Transform yearly forecast response to chart data
  */
 export function transformYearlyForecast(
