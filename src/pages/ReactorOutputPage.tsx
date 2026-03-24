@@ -36,7 +36,7 @@ import { Download as PrintIcon, Edit as EditIcon } from '@mui/icons-material';
 import { useReactor } from '../context/ReactorContext';
 import { exportUnifiedPDF } from '../utils/pdfGenerator';
 import {
-  getDualMaterialForecast,
+  getDualMaterialForecastSplit,
   transformYearlyForecast,
   getLocalForecast,
   ForecastDataPoint,
@@ -100,43 +100,42 @@ export default function ReactorOutputPage() {
       ? (shellMaterialCost + limpetMaterialCost)
       : calculationResult.results.summary.grand_total;
 
-    const shellPct = totalMaterialCost > 0 ? (shellMaterialCost / totalMaterialCost) * 100 : 70;
-    const limpetPct = totalMaterialCost > 0 ? (limpetMaterialCost / totalMaterialCost) * 100 : 30;
+    // Effective shell cost: use shell-only if available, otherwise fall back to combined total
+    const effectiveShellCost = shellMaterialCost > 0 ? shellMaterialCost : totalMaterialCost;
 
     let cancelled = false;
 
     setForecastLoading(true);
     setForecastError(null);
 
-    // Fetch DUAL material forecast (always yearly; filtering done on frontend)
-    getDualMaterialForecast(
-      totalMaterialCost,
+    // Fetch DUAL material forecast via two independent calls to avoid percentage-split issues
+    getDualMaterialForecastSplit(
+      effectiveShellCost,
       shellMaterial,
-      shellPct,
-      limpetPct
-    ).then((response) => {
+      limpetMaterialCost,
+    ).then(({ shell, limpet }) => {
       if (cancelled) return;
 
-      if (response) {
+      if (shell) {
         // Transform primary material (Shell)
-        const primaryTransformed = transformYearlyForecast(response.primary_material);
+        const primaryTransformed = transformYearlyForecast(shell);
 
-        // Transform secondary material (MS Limpet)
-        const secondaryTransformed = response.secondary_material
-          ? transformYearlyForecast(response.secondary_material)
+        // Transform secondary material (MS Limpet) — only when limpetMaterialCost > 0
+        const secondaryTransformed = (limpetMaterialCost > 0 && limpet)
+          ? transformYearlyForecast(limpet)
           : [];
 
         setCostForecastData(primaryTransformed);
         setCostForecastDataSecondary(secondaryTransformed);
 
         setMaterialInfo({
-          material_type: response.primary_material.material_type,
-          material_name: response.primary_material.material_name,
-          current_wpi: response.primary_material.current_wpi,
-          base_cost: response.primary_material.base_cost,
+          material_type: shell.material_type,
+          material_name: shell.material_name,
+          current_wpi: shell.current_wpi,
+          base_cost: effectiveShellCost,
         });
       } else {
-        setCostForecastData(getLocalForecast(totalMaterialCost, assumptions.annualInflationRate));
+        setCostForecastData(getLocalForecast(effectiveShellCost, assumptions.annualInflationRate));
         setForecastError('Backend unavailable – showing estimated forecast.');
       }
 
