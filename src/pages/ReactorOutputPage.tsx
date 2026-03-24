@@ -134,7 +134,7 @@ export default function ReactorOutputPage() {
   const commodityScenarioData = useMemo(() => {
     if (!calculationResult) return [];
     const base = calculationResult.results.grand_total;
-    const cb = calculationResult.results.cost_breakdown;
+    const cb = calculationResult.results.cost_breakdown ?? {};
     return [
       { scenario: '+10% SS304', baseValue: base, scenarioValue: base + ((cb['SS304 Plate'] || 0) + (cb['SS304 Pipe'] || 0)) * 0.1 },
       { scenario: '+10% MS', baseValue: base, scenarioValue: base + ((cb['MS Plate'] || 0) + (cb['MS Pipe'] || 0)) * 0.1 },
@@ -155,7 +155,7 @@ export default function ReactorOutputPage() {
 
   const pieData = useMemo(() => {
     if (!calculationResult) return [];
-    const cb = calculationResult.results.cost_breakdown;
+    const cb = calculationResult.results.cost_breakdown ?? {};
     const groups: { [key: string]: number } = {
       'SS304 Material': (cb['SS304 Plate'] || 0) + (cb['SS304 Pipe'] || 0),
       'MS Material': (cb['MS Plate'] || 0) + (cb['MS Pipe'] || 0),
@@ -298,7 +298,7 @@ export default function ReactorOutputPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {Object.entries(calculationResult.results.cost_breakdown)
+                {Object.entries(calculationResult.results.cost_breakdown ?? {})
                   .filter(([k, v]) => v > 0 && k !== 'Profit')
                   .map(([key, val]) => (
                     <TableRow key={key} hover>
@@ -535,7 +535,7 @@ export default function ReactorOutputPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {Object.entries(calculationResult.results.cost_breakdown)
+            {Object.entries(calculationResult.results.cost_breakdown ?? {})
               .filter(([k, v]) => v > 0 && k !== 'Profit')
               .map(([key, val], i) => (
                 <TableRow key={key} sx={{ backgroundColor: i % 2 === 0 ? '#fafafa' : 'white' }}>
