@@ -133,8 +133,20 @@ export default function ReactorOutputPage() {
 
   const commodityScenarioData = useMemo(() => {
     if (!calculationResult) return [];
-    const fb = calculationResult.results.fabrication_breakdown;
     const base = calculationResult.results.summary.grand_total;
+
+    // Use backend cost_variation if available
+    const cv = calculationResult.results.cost_variation;
+    if (cv && Object.keys(cv).length > 0) {
+      return Object.entries(cv).map(([scenario, data]: [string, any]) => ({
+        scenario,
+        baseValue: base,
+        scenarioValue: data.cost || base,
+      }));
+    }
+
+    // Fallback to local estimation
+    const fb = calculationResult.results.fabrication_breakdown;
     return [
       { scenario: '+10% SS304', baseValue: base, scenarioValue: base + (fb.ss304_plate.total_cost + fb.ss304_pipe.total_cost) * 0.1 },
       { scenario: '+10% MS', baseValue: base, scenarioValue: base + (fb.ms_plate.total_cost + fb.ms_pipe.total_cost) * 0.1 },
@@ -144,8 +156,20 @@ export default function ReactorOutputPage() {
 
   const specScenarioData = useMemo(() => {
     if (!calculationResult) return [];
-    const fb = calculationResult.results.fabrication_breakdown;
     const base = calculationResult.results.summary.grand_total;
+
+    // Use backend measurement_variation if available
+    const mv = calculationResult.results.measurement_variation;
+    if (mv && Object.keys(mv).length > 0) {
+      return Object.entries(mv).map(([scenario, data]: [string, any]) => ({
+        scenario,
+        baseValue: base,
+        scenarioValue: data.cost || base,
+      }));
+    }
+
+    // Fallback to local estimation
+    const fb = calculationResult.results.fabrication_breakdown;
     const materialTotal =
       fb.ss304_plate.total_cost + fb.ss304_pipe.total_cost +
       fb.ms_plate.total_cost + fb.ms_pipe.total_cost +

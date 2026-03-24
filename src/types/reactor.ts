@@ -162,6 +162,9 @@ export interface CostSummary {
 export interface ReactorCalculationResults {
   fabrication_breakdown: FabricationBreakdown;
   summary: CostSummary;
+  measurement_variation?: any;
+  cost_variation?: any;
+  category_breakup?: any;
 }
 
 export interface ReactorCalculationResult {

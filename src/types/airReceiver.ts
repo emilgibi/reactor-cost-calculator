@@ -114,6 +114,8 @@ export interface AirReceiverCostSummary {
 export interface AirReceiverCalculationResult {
   fabrication_breakdown: { [key: string]: AirReceiverCostItem };
   summary: AirReceiverCostSummary;
+  measurement_variation?: any;
+  cost_variation?: any;
 }
 
 /** Dummy backend response shape – kept for reference */
