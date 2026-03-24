@@ -158,7 +158,7 @@ export default function ReactorInputPage() {
       const result = await response.json();
       
       if (result.success) {
-        setCalculationResult(result.results);
+        setCalculationResult(result);
         navigate('/reactor/output');
       } else {
         setError(result.error && typeof result.error === 'string' ? result.error : result.error ? JSON.stringify(result.error) : 'Calculation failed');
