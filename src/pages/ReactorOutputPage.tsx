@@ -87,12 +87,18 @@ export default function ReactorOutputPage() {
       ? (fb.ss304_plate?.total_cost || 0) + (fb.ss304_pipe?.total_cost || 0)
       : (fb.ms_plate?.total_cost || 0) + (fb.ms_pipe?.total_cost || 0);
 
-    // Limpet coil is always MS; avoid double-counting when shell is also MS
+    // Limpet coil is always MS — prefer the dedicated limpet line item
+    const limpetDedicated = fb.limpet?.total_cost || 0;
     const limpetMaterialCost = shellMaterial !== 'MS'
-      ? (fb.ms_plate?.total_cost || 0) + (fb.ms_pipe?.total_cost || 0)
+      ? (limpetDedicated > 0
+          ? limpetDedicated
+          : (fb.ms_plate?.total_cost || 0) + (fb.ms_pipe?.total_cost || 0))
       : 0;
 
-    const totalMaterialCost = shellMaterialCost + limpetMaterialCost;
+    // Guard: if totalMaterialCost is 0, fall back to grand_total to avoid sending 0 to backend
+    const totalMaterialCost = (shellMaterialCost + limpetMaterialCost) > 0
+      ? (shellMaterialCost + limpetMaterialCost)
+      : calculationResult.results.summary.grand_total;
 
     const shellPct = totalMaterialCost > 0 ? (shellMaterialCost / totalMaterialCost) * 100 : 70;
     const limpetPct = totalMaterialCost > 0 ? (limpetMaterialCost / totalMaterialCost) * 100 : 30;
