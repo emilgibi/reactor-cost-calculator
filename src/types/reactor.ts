@@ -122,19 +122,46 @@ export interface StructuredAssumptions {
   };
 }
 
-export interface ReactorCalculationResults {
+export interface CostItem {
+  description: string;
+  unit_rate: number | null;
+  quantity: number | null;
+  unit_type: string | null;
+  total_cost: number;
+}
+
+export interface FabricationBreakdown {
+  ss304_plate: CostItem;
+  ss304_pipe: CostItem;
+  ms_plate: CostItem;
+  ms_pipe: CostItem;
+  ss_labour: CostItem;
+  ms_labour: CostItem;
+  limpet: CostItem;
+  consumable: CostItem;
+  hardware: CostItem;
+  brought_out: CostItem;
+  dish_pressing: CostItem;
+  machine_charges: CostItem;
+  agitator_assembly: CostItem;
+  acid_cleaning: CostItem;
+  mirror_finish: CostItem;
+  painting: CostItem;
+  local_transport: CostItem;
+}
+
+export interface CostSummary {
+  fabrication_cost: number;
+  overhead_percentage: number;
+  overhead_amount: number;
+  profit_percentage: number;
+  profit_amount: number;
   grand_total: number;
-  cost_breakdown: { [key: string]: number };
-  total_material_cost: number;
-  total_labour_cost: number;
-  overhead_cost: number;
-  profit_cost: number;
-  material_weight?: {
-    ss304: number;
-    ss_pipe: number;
-    ms: number;
-    ms_pipe: number;
-  };
+}
+
+export interface ReactorCalculationResults {
+  fabrication_breakdown: FabricationBreakdown;
+  summary: CostSummary;
 }
 
 export interface ReactorCalculationResult {
@@ -143,7 +170,7 @@ export interface ReactorCalculationResult {
   results: ReactorCalculationResults;
 }
 
-/** Dummy backend response shape – ready for real API integration */
+/** Dummy backend response shape – kept for reference */
 export interface BackendResponse {
   lineItems: Array<{
     name: string;

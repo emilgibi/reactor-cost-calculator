@@ -4,6 +4,8 @@ import {
   AirReceiverAssumptions,
   AirReceiverCalculationResult,
   AirReceiverBackendResponse,
+  AirReceiverCostItem,
+  AirReceiverCostSummary,
 } from '../types/airReceiver';
 
 export type { AirReceiverFormInput, AirReceiverAssumptions, AirReceiverCalculationResult };
@@ -152,28 +154,33 @@ export function AirReceiverProvider({ children }: { children: React.ReactNode })
     const dishWeight = dishArea * (spec.Dish.thickness / 1000) * density;
     const totalWeight = shellWeight + dishWeight;
 
-    const costBreakdown: { [key: string]: number } = {};
+    const mkItem = (description: string, unit_rate: number | null, quantity: number | null, unit_type: string | null, total_cost: number): AirReceiverCostItem => ({
+      description,
+      unit_rate,
+      quantity,
+      unit_type,
+      total_cost,
+    });
 
     const materialCost = totalWeight * plateCost;
     const labourTotal = totalWeight * labourCost;
+    const dishPressingTotal = assumptions.dishPressingPerSqm * dishWeight;
+
+    const fabrication_breakdown: { [key: string]: AirReceiverCostItem } = {};
 
     if (isSS) {
-      costBreakdown['SS304 Plate'] = materialCost;
-      costBreakdown['SS Labour'] = labourTotal;
+      fabrication_breakdown['ss304_plate'] = mkItem('SS304 Plate', assumptions.ss304PlateCost, totalWeight, 'kg', materialCost);
+      fabrication_breakdown['ss_labour'] = mkItem('SS Labour', assumptions.ssLabourCost, totalWeight, 'kg', labourTotal);
     } else {
-      costBreakdown['MS Plate'] = materialCost;
-      costBreakdown['MS Labour'] = labourTotal;
+      fabrication_breakdown['ms_plate'] = mkItem('MS Plate', assumptions.msPlateCost, totalWeight, 'kg', materialCost);
+      fabrication_breakdown['ms_labour'] = mkItem('MS Labour', assumptions.msLabourCost, totalWeight, 'kg', labourTotal);
     }
 
-    const dishPressingTotal = assumptions.dishPressingPerSqm * dishWeight;
-    costBreakdown['Dish Pressing'] = dishPressingTotal;
-    costBreakdown['Machine Charges'] = assumptions.machineCharges;
-    costBreakdown['Hardware'] = assumptions.hardwareCost;
-    costBreakdown['Painting'] = assumptions.paintingCost;
-    costBreakdown['Local Transport'] = assumptions.localTransportCost;
-
-    const totalMaterialCost = materialCost;
-    const totalLabourCost = labourTotal;
+    fabrication_breakdown['dish_pressing'] = mkItem('Dish Pressing', assumptions.dishPressingPerSqm, dishWeight, 'kg', dishPressingTotal);
+    fabrication_breakdown['machine_charges'] = mkItem('Machine Charges', null, null, null, assumptions.machineCharges);
+    fabrication_breakdown['hardware'] = mkItem('Hardware', null, null, null, assumptions.hardwareCost);
+    fabrication_breakdown['painting'] = mkItem('Painting', null, null, null, assumptions.paintingCost);
+    fabrication_breakdown['local_transport'] = mkItem('Local Transport', null, null, null, assumptions.localTransportCost);
 
     const fabricationCost =
       materialCost +
@@ -184,23 +191,20 @@ export function AirReceiverProvider({ children }: { children: React.ReactNode })
       assumptions.paintingCost +
       assumptions.localTransportCost;
 
-    const overheadCost = (fabricationCost * assumptions.overheadPercent) / 100;
-    costBreakdown['Overhead'] = overheadCost;
+    const overheadAmount = (fabricationCost * assumptions.overheadPercent) / 100;
+    const profitAmount = ((fabricationCost + overheadAmount) * assumptions.profitPercent) / 100;
+    const grandTotal = fabricationCost + overheadAmount + profitAmount;
 
-    const profitCost = ((fabricationCost + overheadCost) * assumptions.profitPercent) / 100;
-    costBreakdown['Profit'] = profitCost;
+    const summary: AirReceiverCostSummary = {
+      fabrication_cost: fabricationCost,
+      overhead_percentage: assumptions.overheadPercent,
+      overhead_amount: overheadAmount,
+      profit_percentage: assumptions.profitPercent,
+      profit_amount: profitAmount,
+      grand_total: grandTotal,
+    };
 
-    const grandTotal = fabricationCost + overheadCost + profitCost;
-
-    setCalculationResult({
-      materialWeight: { ss304: isSS ? totalWeight : 0, ms: isSS ? 0 : totalWeight },
-      costBreakdown,
-      totalMaterialCost,
-      totalLabourCost,
-      overheadCost,
-      profitCost,
-      grandTotal,
-    });
+    setCalculationResult({ fabrication_breakdown, summary });
   }, [inputs, assumptions]);
 
   const saveConfiguration = useCallback(

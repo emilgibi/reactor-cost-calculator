@@ -94,17 +94,29 @@ export interface AirReceiverStructuredAssumptions {
   };
 }
 
-export interface AirReceiverCalculationResult {
-  materialWeight: { ss304: number; ms: number };
-  costBreakdown: { [key: string]: number };
-  totalMaterialCost: number;
-  totalLabourCost: number;
-  overheadCost: number;
-  profitCost: number;
-  grandTotal: number;
+export interface AirReceiverCostItem {
+  description: string;
+  unit_rate: number | null;
+  quantity: number | null;
+  unit_type: string | null;
+  total_cost: number;
 }
 
-/** Dummy backend response shape – ready for real API integration */
+export interface AirReceiverCostSummary {
+  fabrication_cost: number;
+  overhead_percentage: number;
+  overhead_amount: number;
+  profit_percentage: number;
+  profit_amount: number;
+  grand_total: number;
+}
+
+export interface AirReceiverCalculationResult {
+  fabrication_breakdown: { [key: string]: AirReceiverCostItem };
+  summary: AirReceiverCostSummary;
+}
+
+/** Dummy backend response shape – kept for reference */
 export interface AirReceiverBackendResponse {
   lineItems: Array<{
     name: string;

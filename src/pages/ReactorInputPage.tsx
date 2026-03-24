@@ -100,7 +100,12 @@ export default function ReactorInputPage() {
           },
           Finish: { type: s.Finish.type },
         },
-        NozzleSchedule: inputs.NozzleSchedule,
+        NozzleSchedule: Object.fromEntries(
+          Object.entries(inputs.NozzleSchedule).map(([key, val]) => [
+            key,
+            { count: (val as { count: number }).count || 0 },
+          ])
+        ),
         Assumptions: {
           MaterialCosts: {
             SS304_Plate: assumptions.ss304PlateCost,
@@ -142,7 +147,7 @@ export default function ReactorInputPage() {
         },
       };
 
-      const response = await fetch(`${backendUrl}/api/kl-reactor-calculation`, {
+      const response = await fetch(`${backendUrl}/analysis/kl-reactor-calculation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

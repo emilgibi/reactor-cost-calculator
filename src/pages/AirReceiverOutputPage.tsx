@@ -75,7 +75,7 @@ export default function AirReceiverOutputPage() {
     }
 
     const materialType = inputs.Specification?.Shell?.moc || 'MS';
-    const baseCost = calculationResult.grandTotal;
+    const baseCost = calculationResult.summary.grand_total;
     let cancelled = false;
 
     setForecastLoading(true);
@@ -132,11 +132,11 @@ export default function AirReceiverOutputPage() {
 
   const commodityScenarioData = useMemo(() => {
     if (!calculationResult) return [];
-    const base = calculationResult.grandTotal;
-    const cb = calculationResult.costBreakdown;
-    const ss304 = cb['SS304 Plate'] || 0;
-    const ms = cb['MS Plate'] || 0;
-    const labour = (cb['SS Labour'] || 0) + (cb['MS Labour'] || 0);
+    const fb = calculationResult.fabrication_breakdown;
+    const base = calculationResult.summary.grand_total;
+    const ss304 = (fb['ss304_plate']?.total_cost || 0);
+    const ms = (fb['ms_plate']?.total_cost || 0);
+    const labour = (fb['ss_labour']?.total_cost || 0) + (fb['ms_labour']?.total_cost || 0);
     return [
       { scenario: '+10% SS304', baseValue: base, scenarioValue: base + ss304 * 0.1 },
       { scenario: '+10% MS', baseValue: base, scenarioValue: base + ms * 0.1 },
@@ -146,8 +146,11 @@ export default function AirReceiverOutputPage() {
 
   const specScenarioData = useMemo(() => {
     if (!calculationResult) return [];
-    const base = calculationResult.grandTotal;
-    const matLabour = calculationResult.totalMaterialCost + calculationResult.totalLabourCost;
+    const fb = calculationResult.fabrication_breakdown;
+    const base = calculationResult.summary.grand_total;
+    const matLabour =
+      (fb['ss304_plate']?.total_cost || 0) + (fb['ms_plate']?.total_cost || 0) +
+      (fb['ss_labour']?.total_cost || 0) + (fb['ms_labour']?.total_cost || 0);
     return [
       { scenario: '+10% Diameter', baseValue: base, scenarioValue: base + matLabour * 0.08 },
       { scenario: '+10% Height', baseValue: base, scenarioValue: base + matLabour * 0.1 },
@@ -157,14 +160,14 @@ export default function AirReceiverOutputPage() {
 
   const pieData = useMemo(() => {
     if (!calculationResult) return [];
-    const cb = calculationResult.costBreakdown;
+    const fb = calculationResult.fabrication_breakdown;
     const groups: { [key: string]: number } = {
-      'SS304 Material': cb['SS304 Plate'] || 0,
-      'MS Material': cb['MS Plate'] || 0,
-      'Labour': (cb['SS Labour'] || 0) + (cb['MS Labour'] || 0),
-      'Services': (cb['Dish Pressing'] || 0) + (cb['Machine Charges'] || 0),
-      'Overhead & Profit': (cb['Overhead'] || 0) + calculationResult.profitCost,
-      'Other': (cb['Hardware'] || 0) + (cb['Painting'] || 0) + (cb['Local Transport'] || 0),
+      'SS304 Material': fb['ss304_plate']?.total_cost || 0,
+      'MS Material': fb['ms_plate']?.total_cost || 0,
+      'Labour': (fb['ss_labour']?.total_cost || 0) + (fb['ms_labour']?.total_cost || 0),
+      'Services': (fb['dish_pressing']?.total_cost || 0) + (fb['machine_charges']?.total_cost || 0),
+      'Overhead & Profit': calculationResult.summary.overhead_amount + calculationResult.summary.profit_amount,
+      'Other': (fb['hardware']?.total_cost || 0) + (fb['painting']?.total_cost || 0) + (fb['local_transport']?.total_cost || 0),
     };
     return Object.entries(groups)
       .filter(([, v]) => v > 0)
@@ -192,10 +195,16 @@ export default function AirReceiverOutputPage() {
   }
 
   const summaryCards = [
-    { label: 'Material Cost', value: formatCurrency(calculationResult.totalMaterialCost) },
-    { label: 'Labour Cost', value: formatCurrency(calculationResult.totalLabourCost) },
-    { label: 'Overhead', value: formatCurrency(calculationResult.overheadCost) },
-    { label: 'Grand Total', value: formatCurrency(calculationResult.grandTotal), highlight: true },
+    { label: 'Material Cost', value: formatCurrency(
+        (calculationResult.fabrication_breakdown['ss304_plate']?.total_cost || 0) +
+        (calculationResult.fabrication_breakdown['ms_plate']?.total_cost || 0)
+      ) },
+    { label: 'Labour Cost', value: formatCurrency(
+        (calculationResult.fabrication_breakdown['ss_labour']?.total_cost || 0) +
+        (calculationResult.fabrication_breakdown['ms_labour']?.total_cost || 0)
+      ) },
+    { label: 'Overhead', value: formatCurrency(calculationResult.summary.overhead_amount) },
+    { label: 'Grand Total', value: formatCurrency(calculationResult.summary.grand_total), highlight: true },
   ];
 
   return (
@@ -274,21 +283,21 @@ export default function AirReceiverOutputPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {Object.entries(calculationResult.costBreakdown)
-                  .filter(([k, v]) => v > 0 && k !== 'Profit')
-                  .map(([key, val]) => (
-                    <TableRow key={key} hover>
-                      <TableCell>{key}</TableCell>
-                      <TableCell align="right">{formatCurrency(val)}</TableCell>
+                {Object.values(calculationResult.fabrication_breakdown)
+                  .filter((item) => item.total_cost > 0)
+                  .map((item) => (
+                    <TableRow key={item.description} hover>
+                      <TableCell>{item.description}</TableCell>
+                      <TableCell align="right">{formatCurrency(item.total_cost)}</TableCell>
                     </TableRow>
                   ))}
                 <TableRow hover>
                   <TableCell>Profit</TableCell>
-                  <TableCell align="right">{formatCurrency(calculationResult.profitCost)}</TableCell>
+                  <TableCell align="right">{formatCurrency(calculationResult.summary.profit_amount)}</TableCell>
                 </TableRow>
                 <TableRow sx={{ backgroundColor: '#e8f5e9' }}>
                   <TableCell sx={{ fontWeight: 700 }}>GRAND TOTAL</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{formatCurrency(calculationResult.grandTotal)}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{formatCurrency(calculationResult.summary.grand_total)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -509,21 +518,21 @@ export default function AirReceiverOutputPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {Object.entries(calculationResult.costBreakdown)
-              .filter(([k, v]) => v > 0 && k !== 'Profit')
-              .map(([key, val], i) => (
-                <TableRow key={key} sx={{ backgroundColor: i % 2 === 0 ? '#fafafa' : 'white' }}>
-                  <TableCell>{key}</TableCell>
-                  <TableCell align="right">{formatCurrency(val)}</TableCell>
+            {Object.values(calculationResult.fabrication_breakdown)
+              .filter((item) => item.total_cost > 0)
+              .map((item, i) => (
+                <TableRow key={item.description} sx={{ backgroundColor: i % 2 === 0 ? '#fafafa' : 'white' }}>
+                  <TableCell>{item.description}</TableCell>
+                  <TableCell align="right">{formatCurrency(item.total_cost)}</TableCell>
                 </TableRow>
               ))}
             <TableRow sx={{ backgroundColor: '#fafafa' }}>
               <TableCell>Profit</TableCell>
-              <TableCell align="right">{formatCurrency(calculationResult.profitCost)}</TableCell>
+              <TableCell align="right">{formatCurrency(calculationResult.summary.profit_amount)}</TableCell>
             </TableRow>
             <TableRow sx={{ backgroundColor: '#e8f5e9' }}>
               <TableCell sx={{ fontWeight: 700 }}>GRAND TOTAL</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700 }}>{formatCurrency(calculationResult.grandTotal)}</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>{formatCurrency(calculationResult.summary.grand_total)}</TableCell>
             </TableRow>
           </TableBody>
         </Table>
