@@ -169,16 +169,16 @@ export function ReactorProvider({ children }: { children: React.ReactNode }) {
 
     const materialWeight = {
       ss304: 3268.39 * scalingFactor,
-      ssPipe: 83.06 * scalingFactor,
+      ss_pipe: 83.06 * scalingFactor,
       ms: 1084.42 * scalingFactor,
-      msPipe: 3.98 * scalingFactor,
+      ms_pipe: 3.98 * scalingFactor,
     };
 
     const costBreakdown: { [key: string]: number } = {};
     const ss304PleateCost = materialWeight.ss304 * assumptions.ss304PlateCost;
-    const ss304PipeCost = materialWeight.ssPipe * assumptions.ss304PipeCost;
+    const ss304PipeCost = materialWeight.ss_pipe * assumptions.ss304PipeCost;
     const msPlateCost = materialWeight.ms * assumptions.msPlateCost;
-    const msPipeCost = materialWeight.msPipe * assumptions.msPipeCost;
+    const msPipeCost = materialWeight.ms_pipe * assumptions.msPipeCost;
 
     costBreakdown['SS304 Plate'] = ss304PleateCost;
     costBreakdown['SS304 Pipe'] = ss304PipeCost;
@@ -187,8 +187,8 @@ export function ReactorProvider({ children }: { children: React.ReactNode }) {
 
     let totalMaterialCost = ss304PleateCost + ss304PipeCost + msPlateCost + msPipeCost;
 
-    const ssLabourCost = (materialWeight.ss304 + materialWeight.ssPipe) * assumptions.ssLabourCost;
-    const msLabourCost = (materialWeight.ms + materialWeight.msPipe) * assumptions.msLabourCost;
+    const ssLabourCost = (materialWeight.ss304 + materialWeight.ss_pipe) * assumptions.ssLabourCost;
+    const msLabourCost = (materialWeight.ms + materialWeight.ms_pipe) * assumptions.msLabourCost;
     costBreakdown['SS Labour'] = ssLabourCost;
     costBreakdown['MS Labour'] = msLabourCost;
     totalMaterialCost += ssLabourCost + msLabourCost;
@@ -253,13 +253,17 @@ export function ReactorProvider({ children }: { children: React.ReactNode }) {
     const grandTotal = fabricationCost + overheadCost + profitCost;
 
     setCalculationResult({
-      materialWeight,
-      costBreakdown,
-      totalMaterialCost,
-      totalLabourCost: ssLabourCost + msLabourCost,
-      overheadCost,
-      profitCost,
-      grandTotal,
+      success: true,
+      message: 'Local calculation completed',
+      results: {
+        material_weight: materialWeight,
+        cost_breakdown: costBreakdown,
+        total_material_cost: totalMaterialCost,
+        total_labour_cost: ssLabourCost + msLabourCost,
+        overhead_cost: overheadCost,
+        profit_cost: profitCost,
+        grand_total: grandTotal,
+      },
     });
   }, [inputs, assumptions]);
 

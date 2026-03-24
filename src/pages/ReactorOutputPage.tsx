@@ -79,7 +79,7 @@ export default function ReactorOutputPage() {
     }
 
     const shellMaterial = inputs.Specification?.Shell?.moc || 'SS304';
-    const baseCost = calculationResult.grandTotal;
+    const baseCost = calculationResult.results.grand_total;
     let cancelled = false;
 
     setForecastLoading(true);
@@ -133,8 +133,8 @@ export default function ReactorOutputPage() {
 
   const commodityScenarioData = useMemo(() => {
     if (!calculationResult) return [];
-    const base = calculationResult.grandTotal;
-    const cb = calculationResult.costBreakdown;
+    const base = calculationResult.results.grand_total;
+    const cb = calculationResult.results.cost_breakdown;
     return [
       { scenario: '+10% SS304', baseValue: base, scenarioValue: base + ((cb['SS304 Plate'] || 0) + (cb['SS304 Pipe'] || 0)) * 0.1 },
       { scenario: '+10% MS', baseValue: base, scenarioValue: base + ((cb['MS Plate'] || 0) + (cb['MS Pipe'] || 0)) * 0.1 },
@@ -144,8 +144,8 @@ export default function ReactorOutputPage() {
 
   const specScenarioData = useMemo(() => {
     if (!calculationResult) return [];
-    const base = calculationResult.grandTotal;
-    const materialTotal = calculationResult.totalMaterialCost + calculationResult.totalLabourCost;
+    const base = calculationResult.results.grand_total;
+    const materialTotal = calculationResult.results.total_material_cost + calculationResult.results.total_labour_cost;
     return [
       { scenario: '+10% Shell Dia', baseValue: base, scenarioValue: base + materialTotal * 0.1 * 0.6 },
       { scenario: '+10% Thickness', baseValue: base, scenarioValue: base + materialTotal * 0.1 * 0.3 },
@@ -155,7 +155,7 @@ export default function ReactorOutputPage() {
 
   const pieData = useMemo(() => {
     if (!calculationResult) return [];
-    const cb = calculationResult.costBreakdown;
+    const cb = calculationResult.results.cost_breakdown;
     const groups: { [key: string]: number } = {
       'SS304 Material': (cb['SS304 Plate'] || 0) + (cb['SS304 Pipe'] || 0),
       'MS Material': (cb['MS Plate'] || 0) + (cb['MS Pipe'] || 0),
@@ -173,7 +173,7 @@ export default function ReactorOutputPage() {
         (cb['Agitator Assembly'] || 0) +
         (cb['Mirror Finish'] || 0) +
         (cb['Acid Cleaning'] || 0),
-      'Overhead & Profit': (cb['Overhead'] || 0) + calculationResult.profitCost,
+      'Overhead & Profit': (cb['Overhead'] || 0) + calculationResult.results.profit_cost,
       Other:
         (cb['Hardware'] || 0) +
         (cb['Consumables'] || 0) +
@@ -210,10 +210,10 @@ export default function ReactorOutputPage() {
   }
 
   const summaryCards = [
-    { label: 'Material Cost', value: formatCurrency(calculationResult.totalMaterialCost), bgcolor: '#E3F2FD', accent: '#1976d2' },
-    { label: 'Labour Cost', value: formatCurrency(calculationResult.totalLabourCost), bgcolor: '#E8F5E9', accent: '#388e3c' },
-    { label: 'Overhead', value: formatCurrency(calculationResult.overheadCost), bgcolor: '#FFF3E0', accent: '#f57c00' },
-    { label: 'Grand Total', value: formatCurrency(calculationResult.grandTotal), highlight: true, bgcolor: '#F3E5F5', accent: '#7b1fa2' },
+    { label: 'Material Cost', value: formatCurrency(calculationResult.results.total_material_cost), bgcolor: '#E3F2FD', accent: '#1976d2' },
+    { label: 'Labour Cost', value: formatCurrency(calculationResult.results.total_labour_cost), bgcolor: '#E8F5E9', accent: '#388e3c' },
+    { label: 'Overhead', value: formatCurrency(calculationResult.results.overhead_cost), bgcolor: '#FFF3E0', accent: '#f57c00' },
+    { label: 'Grand Total', value: formatCurrency(calculationResult.results.grand_total), highlight: true, bgcolor: '#F3E5F5', accent: '#7b1fa2' },
   ];
 
   return (
@@ -298,7 +298,7 @@ export default function ReactorOutputPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {Object.entries(calculationResult.costBreakdown)
+                {Object.entries(calculationResult.results.cost_breakdown)
                   .filter(([k, v]) => v > 0 && k !== 'Profit')
                   .map(([key, val]) => (
                     <TableRow key={key} hover>
@@ -308,12 +308,12 @@ export default function ReactorOutputPage() {
                   ))}
                 <TableRow hover>
                   <TableCell>Profit</TableCell>
-                  <TableCell align="right">{formatCurrency(calculationResult.profitCost)}</TableCell>
+                  <TableCell align="right">{formatCurrency(calculationResult.results.profit_cost)}</TableCell>
                 </TableRow>
                 <TableRow sx={{ backgroundColor: '#e3f2fd' }}>
                   <TableCell sx={{ fontWeight: 700 }}>GRAND TOTAL</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700 }}>
-                    {formatCurrency(calculationResult.grandTotal)}
+                    {formatCurrency(calculationResult.results.grand_total)}
                   </TableCell>
                 </TableRow>
               </TableBody>
@@ -535,7 +535,7 @@ export default function ReactorOutputPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {Object.entries(calculationResult.costBreakdown)
+            {Object.entries(calculationResult.results.cost_breakdown)
               .filter(([k, v]) => v > 0 && k !== 'Profit')
               .map(([key, val], i) => (
                 <TableRow key={key} sx={{ backgroundColor: i % 2 === 0 ? '#fafafa' : 'white' }}>
@@ -545,11 +545,11 @@ export default function ReactorOutputPage() {
               ))}
             <TableRow sx={{ backgroundColor: '#fafafa' }}>
               <TableCell>Profit</TableCell>
-              <TableCell align="right">{formatCurrency(calculationResult.profitCost)}</TableCell>
+              <TableCell align="right">{formatCurrency(calculationResult.results.profit_cost)}</TableCell>
             </TableRow>
             <TableRow sx={{ backgroundColor: '#e3f2fd' }}>
               <TableCell sx={{ fontWeight: 700 }}>GRAND TOTAL</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700 }}>{formatCurrency(calculationResult.grandTotal)}</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>{formatCurrency(calculationResult.results.grand_total)}</TableCell>
             </TableRow>
           </TableBody>
         </Table>

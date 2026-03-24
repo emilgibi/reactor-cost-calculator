@@ -122,19 +122,25 @@ export interface StructuredAssumptions {
   };
 }
 
-export interface ReactorCalculationResult {
-  materialWeight: {
+export interface ReactorCalculationResults {
+  grand_total: number;
+  cost_breakdown: { [key: string]: number };
+  total_material_cost: number;
+  total_labour_cost: number;
+  overhead_cost: number;
+  profit_cost: number;
+  material_weight?: {
     ss304: number;
-    ssPipe: number;
+    ss_pipe: number;
     ms: number;
-    msPipe: number;
+    ms_pipe: number;
   };
-  costBreakdown: { [key: string]: number };
-  totalMaterialCost: number;
-  totalLabourCost: number;
-  overheadCost: number;
-  profitCost: number;
-  grandTotal: number;
+}
+
+export interface ReactorCalculationResult {
+  success?: boolean;
+  message?: string;
+  results: ReactorCalculationResults;
 }
 
 /** Dummy backend response shape – ready for real API integration */
