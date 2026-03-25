@@ -120,6 +120,8 @@ export interface StructuredAssumptions {
     mirrorFinishPerSqm: number;
     paintingLumpsum: number;
     localTransportLumpsum: number;
+    hardware: number;
+    consumables: number;
   };
 }
 

@@ -169,6 +169,8 @@ export default function ReactorInputPage() {
 
         // Map backend name keys to human-readable descriptions
         const nameToDescription: Record<string, string> = {
+          ss_plate: 'SS304 Plate',
+          ss_pipe: 'SS304 Pipe',
           ss304_plate: 'SS304 Plate',
           ss304_pipe: 'SS304 Pipe',
           ss316_plate: 'SS316 Plate',
@@ -200,6 +202,8 @@ export default function ReactorInputPage() {
           for (const item of raw.cost_breakup) {
             const key = item.name;
             let normalizedKey = key;
+            if (key === 'ss_plate') normalizedKey = 'ss304_plate';
+            if (key === 'ss_pipe') normalizedKey = 'ss304_pipe';
             if (key === 'hard_ware') normalizedKey = 'hardware';
             if (key === 'MC_charge') normalizedKey = 'machine_charges';
             if (key === 'Agitator_assembly') normalizedKey = 'agitator_assembly';

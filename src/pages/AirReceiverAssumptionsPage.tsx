@@ -83,9 +83,7 @@ export default function AirReceiverAssumptionsPage() {
         </AccordionSummary>
         <AccordionDetails>
           <Grid container spacing={2}>
-            {field('ss304PlateCost', 'SS304 Plate Cost')}
             {field('msPlateCost', 'MS Plate Cost')}
-            {field('ss304PipeCost', 'SS304 Pipe Cost')}
             {field('msPipeCost', 'MS Pipe Cost')}
           </Grid>
         </AccordionDetails>
@@ -97,7 +95,6 @@ export default function AirReceiverAssumptionsPage() {
         </AccordionSummary>
         <AccordionDetails>
           <Grid container spacing={2}>
-            {field('ssLabourCost', 'SS Labour Cost')}
             {field('msLabourCost', 'MS Labour Cost')}
           </Grid>
         </AccordionDetails>
@@ -109,7 +106,6 @@ export default function AirReceiverAssumptionsPage() {
         </AccordionSummary>
         <AccordionDetails>
           <Grid container spacing={2}>
-            {field('ss304Density', 'SS304 Density', '', ' g/cm³')}
             {field('msDensity', 'MS Density', '', ' g/cm³')}
           </Grid>
         </AccordionDetails>
@@ -123,9 +119,10 @@ export default function AirReceiverAssumptionsPage() {
           <Grid container spacing={2}>
             {field('dishPressingPerSqm', 'Dish Pressing (per kg)')}
             {field('machineCharges', 'Machine Charges')}
-            {field('hardwareCost', 'Hardware')}
-            {field('paintingCost', 'Painting')}
-            {field('localTransportCost', 'Local Transport')}
+            {field('hardwareLumpsum', 'Hardware (Lump Sum)')}
+            {field('paintingLumpsum', 'Painting (Lump Sum)')}
+            {field('localTransportLumpsum', 'Local Transport (Lump Sum)')}
+            {field('testingCost', 'Testing Cost')}
           </Grid>
         </AccordionDetails>
       </Accordion>

@@ -112,9 +112,9 @@ export default function AirReceiverInputPage() {
               dishPressingPerSqm: assumptions.dishPressingPerSqm || 20,
               testing: assumptions.testingCost || 30000,
               machineCharges: assumptions.machineCharges || 0,
-              paintingLumpsum: assumptions.paintingCost || 25000,
-              localTransportLumpsum: assumptions.localTransportCost || 35000,
-              hardwareLumpsum: assumptions.hardwareCost || 2500,
+              paintingLumpsum: assumptions.paintingLumpsum || 25000,
+              localTransportLumpsum: assumptions.localTransportLumpsum || 35000,
+              hardwareLumpsum: assumptions.hardwareLumpsum || 2500,
             },
           },
         };
@@ -235,8 +235,8 @@ export default function AirReceiverInputPage() {
     setLoadDialogOpen(false);
   };
 
-  const mocOptions = ['SS304', 'SS316'];
-  const finishTypes = ['Internal', 'External', 'Both', 'None'] as const;
+  const mocOptions = ['CS', 'MS', 'SS304', 'SS316'];
+  const finishTypes = ['Painting', 'Internal', 'External', 'Both', 'None'] as const;
 
   return (
     <Box sx={{ mb: 4 }}>
@@ -258,45 +258,6 @@ export default function AirReceiverInputPage() {
           </Button>
         </Box>
       </Box>
-
-      {/* Vessel Parameters */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#388e3c' }}>
-          Vessel Parameters
-        </Typography>
-        <Grid container spacing={3}>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              fullWidth
-              label="Capacity (KL)"
-              type="number"
-              value={inputs.capacity}
-              onChange={(e) => updateInputs({ capacity: parseFloat(e.target.value) || 20 })}
-              inputProps={{ min: 1, max: 100, step: 1 }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              fullWidth
-              label="Design Pressure (bar)"
-              type="number"
-              value={inputs.designPressure}
-              onChange={(e) => updateInputs({ designPressure: parseFloat(e.target.value) || 10 })}
-              inputProps={{ min: 1, max: 100, step: 0.5 }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              fullWidth
-              label="Test Pressure (bar)"
-              type="number"
-              value={inputs.testPressure}
-              onChange={(e) => updateInputs({ testPressure: parseFloat(e.target.value) || 15 })}
-              inputProps={{ min: 1, max: 150, step: 0.5 }}
-            />
-          </Grid>
-        </Grid>
-      </Paper>
 
       {/* Shell Section */}
       <Paper sx={{ p: 3, mb: 3 }}>
@@ -385,35 +346,13 @@ export default function AirReceiverInputPage() {
         </Grid>
       </Paper>
 
-      {/* Nozzle & Finish */}
+      {/* Finish */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#388e3c' }}>
-          Nozzles & Finish
+          Surface Finish
         </Typography>
         <Grid container spacing={3}>
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>Nozzle MOC</InputLabel>
-              <Select
-                label="Nozzle MOC"
-                value={spec.Nozzle.moc}
-                onChange={(e) => setSpec({ Nozzle: { ...spec.Nozzle, moc: e.target.value } })}
-              >
-                {mocOptions.map((o) => <MenuItem key={o} value={o}>{o}</MenuItem>)}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              fullWidth
-              label="Nozzle Count"
-              type="number"
-              value={spec.Nozzle.count}
-              onChange={(e) => setSpec({ Nozzle: { ...spec.Nozzle, count: parseInt(e.target.value) || 4 } })}
-              inputProps={{ min: 1, max: 50 }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <FormControl fullWidth>
               <InputLabel>Surface Finish</InputLabel>
               <Select
@@ -437,8 +376,6 @@ export default function AirReceiverInputPage() {
           <Divider sx={{ mb: 2 }} />
           <Grid container spacing={2}>
             {[
-              { label: 'Capacity', value: `${inputs.capacity} KL` },
-              { label: 'Design Pressure', value: `${inputs.designPressure} bar` },
               { label: 'Shell MOC', value: spec.Shell.moc },
               { label: 'Shell Dia × H', value: `${spec.Shell.diameter} × ${spec.Shell.height} mm` },
               { label: 'Shell Thickness', value: `${spec.Shell.thickness} mm` },

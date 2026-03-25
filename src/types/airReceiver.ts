@@ -10,18 +10,14 @@ export interface AirReceiverSpecification {
     diameter: number;
     thickness: number;
   };
-  Nozzle: {
-    moc: string;
-    count: number;
-  };
   Finish: {
-    type: 'Internal' | 'External' | 'Both' | 'None';
+    type: 'Painting' | 'Internal' | 'External' | 'Both' | 'None';
   };
 }
 
 export interface AirReceiverFormInput {
   Specification: AirReceiverSpecification;
-  NozzleSchedule: {  // ✅ ADD THIS
+  NozzleSchedule: {
     NB_25: { count: number };
     NB_40: { count: number };
     NB_50: { count: number };
@@ -30,34 +26,27 @@ export interface AirReceiverFormInput {
     NB_150: { count: number };
     NB_600: { count: number };
   };
-  capacity: number;
-  designPressure: number;
-  testPressure: number;
 }
 
 export interface AirReceiverAssumptions {
   // Material Costs
-  ss304PlateCost: number;
-  ss304PipeCost: number;
-  msPlateCost: number;        
-  msPipeCost: number;         
-  
+  msPlateCost: number;
+  msPipeCost: number;
+
   // Labour Costs
-  ssLabourCost: number;
   msLabourCost: number;
-  
+
   // Density Values
-  ss304Density: number;
   msDensity: number;
-  
+
   // Other Costs
-  dishPressingPerSqm: number; 
+  dishPressingPerSqm: number;
   machineCharges: number;
-  paintingCost: number;
-  localTransportCost: number;
-  hardwareCost: number;
-  testingCost: number;        
-  
+  paintingLumpsum: number;
+  localTransportLumpsum: number;
+  hardwareLumpsum: number;
+  testingCost: number;
+
   // Financial Percentages
   overheadPercent: number;
   profitPercent: number;
@@ -67,23 +56,18 @@ export interface AirReceiverAssumptions {
 /** Structured assumptions format matching the backend API schema */
 export interface AirReceiverStructuredAssumptions {
   MaterialCosts: {
-    ss304PlateCost: number;
-    ss304PipeCost: number;
     msPlateCost: number;
     msPipeCost: number;
   };
   LabourCosts: {
-    ssLabourCost: number;
     msLabourCost: number;
   };
   DensityValues: {
-    ss304Density: number;
     msDensity: number;
   };
   FinancialPercentages: {
     overhead: number;
     profit: number;
-    inflationRate: number;
   };
   OtherCosts: {
     dishPressingPerSqm: number;
@@ -91,6 +75,7 @@ export interface AirReceiverStructuredAssumptions {
     paintingLumpsum: number;
     localTransportLumpsum: number;
     hardwareLumpsum: number;
+    testing: number;
   };
 }
 
