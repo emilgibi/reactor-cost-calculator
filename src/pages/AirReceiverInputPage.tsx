@@ -95,23 +95,18 @@ export default function AirReceiverInputPage() {
           },
           Assumptions: {
             MaterialCosts: {
-              ss304PlateCost: assumptions.ss304PlateCost || 210,
-              ss304PipeCost: assumptions.ss304PipeCost || 350,
               msPlateCost: assumptions.msPlateCost || 80,
               msPipeCost: assumptions.msPipeCost || 120,
             },
             LabourCosts: {
-              ssLabourCost: assumptions.ssLabourCost || 28,
               msLabourCost: assumptions.msLabourCost || 30,
             },
             DensityValues: {
-              ss304Density: assumptions.ss304Density || 8,
               msDensity: assumptions.msDensity || 7.86,
             },
             FinancialPercentages: {
               overhead: assumptions.overheadPercent || 10,
               profit: assumptions.profitPercent || 15,
-              inflationRate: assumptions.annualInflationRate || 5,
             },
             OtherCosts: {
               dishPressingPerSqm: assumptions.dishPressingPerSqm || 20,
@@ -213,6 +208,7 @@ export default function AirReceiverInputPage() {
             summary,
             measurement_variation: raw.measurement_variation,
             cost_variation: raw.cost_variation,
+            category_breakup: raw.category_breakup,
           });
           navigate('/air-receiver/output');
         } else {

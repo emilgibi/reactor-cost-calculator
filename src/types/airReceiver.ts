@@ -116,6 +116,7 @@ export interface AirReceiverCalculationResult {
   summary: AirReceiverCostSummary;
   measurement_variation?: any;
   cost_variation?: any;
+  category_breakup?: Record<string, number>;
 }
 
 /** Dummy backend response shape – kept for reference */
