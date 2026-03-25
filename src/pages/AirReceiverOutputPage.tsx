@@ -187,9 +187,16 @@ export default function AirReceiverOutputPage() {
 
   const pieData = useMemo(() => {
     if (!calculationResult) return [];
+    const cb = calculationResult.category_breakup as Record<string, number> | undefined;
+    if (cb && Object.keys(cb).length > 0) {
+      return Object.entries(cb)
+        .filter(([, v]) => v > 0)
+        .map(([name, value]) => ({ name, value: Math.round(value) }));
+    }
+    // fallback: manual grouping from fabrication_breakdown
     const fb = calculationResult.fabrication_breakdown;
     const groups: { [key: string]: number } = {
-      'SS304 Material': (fb['ss304_plate']?.total_cost || 0) + (fb['ss304_pipe']?.total_cost || 0),
+      'SS Material': (fb['ss304_plate']?.total_cost || 0) + (fb['ss304_pipe']?.total_cost || 0),
       'MS Material': (fb['ms_plate']?.total_cost || 0) + (fb['ms_pipe']?.total_cost || 0),
       'Labour': (fb['ss_labour']?.total_cost || 0) + (fb['ms_labour']?.total_cost || 0),
       'Consumables': (fb['consumable']?.total_cost || 0),
@@ -223,18 +230,18 @@ export default function AirReceiverOutputPage() {
   }
 
   const summaryCards = [
-    { label: 'Material Cost', value: formatCurrency(
-        (calculationResult.fabrication_breakdown['ss304_plate']?.total_cost || 0) +
-        (calculationResult.fabrication_breakdown['ss304_pipe']?.total_cost || 0) +
+    { label: 'MATERIAL COST', value: formatCurrency(
         (calculationResult.fabrication_breakdown['ms_plate']?.total_cost || 0) +
-        (calculationResult.fabrication_breakdown['ms_pipe']?.total_cost || 0)
-      ) },
-    { label: 'Labour Cost', value: formatCurrency(
+        (calculationResult.fabrication_breakdown['ms_pipe']?.total_cost || 0) +
+        (calculationResult.fabrication_breakdown['ss304_plate']?.total_cost || 0) +
+        (calculationResult.fabrication_breakdown['ss304_pipe']?.total_cost || 0)
+      ), bgcolor: '#E3F2FD', accent: '#1976d2' },
+    { label: 'LABOUR COST', value: formatCurrency(
         (calculationResult.fabrication_breakdown['ss_labour']?.total_cost || 0) +
         (calculationResult.fabrication_breakdown['ms_labour']?.total_cost || 0)
-      ) },
-    { label: 'Overhead', value: formatCurrency(calculationResult.summary.overhead_amount) },
-    { label: 'Grand Total', value: formatCurrency(calculationResult.summary.grand_total), highlight: true },
+      ), bgcolor: '#E8F5E9', accent: '#388e3c' },
+    { label: 'BASE COST', value: formatCurrency(calculationResult.summary.fabrication_cost), bgcolor: '#FFF3E0', accent: '#f57c00' },
+    { label: 'GRAND TOTAL', value: formatCurrency(calculationResult.summary.grand_total), highlight: true, bgcolor: '#F3E5F5', accent: '#7b1fa2' },
   ];
 
   return (
@@ -269,14 +276,20 @@ export default function AirReceiverOutputPage() {
 
       {/* Summary cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        {summaryCards.map(({ label, value, highlight }) => (
+        {summaryCards.map(({ label, value, highlight, bgcolor, accent }) => (
           <Grid item xs={12} sm={6} md={3} key={label}>
-            <Card sx={{ borderLeft: highlight ? '4px solid #388e3c' : '4px solid #e0e0e0', height: '100%' }}>
+            <Card
+              sx={{
+                bgcolor,
+                borderLeft: `4px solid ${accent}`,
+                height: '100%',
+              }}
+            >
               <CardContent>
                 <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
                   {label}
                 </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: highlight ? '#388e3c' : 'inherit' }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: accent }}>
                   {value}
                 </Typography>
               </CardContent>

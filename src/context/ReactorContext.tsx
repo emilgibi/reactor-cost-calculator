@@ -63,6 +63,7 @@ interface ReactorContextType {
 }
 
 export const defaultInputs: ReactorFormInput = {
+  Kl: 10,
   Specification: {
     Shell: {
       moc: 'SS304',

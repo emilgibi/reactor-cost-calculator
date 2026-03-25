@@ -270,24 +270,27 @@ export default function ReactorOutputPage() {
 
   const pieData = useMemo(() => {
     if (!calculationResult) return [];
+    const cb = calculationResult.results.category_breakup as Record<string, number> | undefined;
+    if (cb && Object.keys(cb).length > 0) {
+      return Object.entries(cb)
+        .filter(([, v]) => v > 0)
+        .map(([name, value]) => ({ name, value: Math.round(value) }));
+    }
+    // fallback: manual grouping from fabrication_breakdown
     const fb = calculationResult.results.fabrication_breakdown;
     const summary = calculationResult.results.summary;
-    const groups: { [key: string]: number } = {
-      'SS304 Material': fb.ss304_plate.total_cost + fb.ss304_pipe.total_cost,
-      'MS Material': fb.ms_plate.total_cost + fb.ms_pipe.total_cost,
-      Labour: fb.ss_labour.total_cost + fb.ms_labour.total_cost,
-      Equipment: fb.brought_out.total_cost,
-      Services:
-        fb.dish_pressing.total_cost + fb.machine_charges.total_cost +
-        fb.agitator_assembly.total_cost + fb.mirror_finish.total_cost + fb.acid_cleaning.total_cost,
+    const groups: Record<string, number> = {
+      'SS Material': (fb.ss304_plate?.total_cost || 0) + (fb.ss304_pipe?.total_cost || 0) + (fb.ss316_plate?.total_cost || 0) + (fb.ss316_pipe?.total_cost || 0),
+      'MS Material': (fb.ms_plate?.total_cost || 0) + (fb.ms_pipe?.total_cost || 0),
+      'Labour': (fb.ss_labour?.total_cost || 0) + (fb.ms_labour?.total_cost || 0),
+      'Limpet System': (fb.limpet?.total_cost || 0),
+      'Bought-Out Items': (fb.brought_out?.total_cost || 0),
+      'Consumables & Hardware': (fb.consumable?.total_cost || 0) + (fb.hardware?.total_cost || 0),
+      'Services': (fb.dish_pressing?.total_cost || 0) + (fb.machine_charges?.total_cost || 0) + (fb.agitator_assembly?.total_cost || 0) + (fb.mirror_finish?.total_cost || 0) + (fb.acid_cleaning?.total_cost || 0),
+      'Logistics': (fb.painting?.total_cost || 0) + (fb.local_transport?.total_cost || 0),
       'Overhead & Profit': summary.overhead_amount + summary.profit_amount,
-      Other:
-        fb.hardware.total_cost + fb.consumable.total_cost +
-        fb.painting.total_cost + fb.local_transport.total_cost + fb.limpet.total_cost,
     };
-    return Object.entries(groups)
-      .filter(([, v]) => v > 0)
-      .map(([name, value]) => ({ name, value: Math.round(value) }));
+    return Object.entries(groups).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value: Math.round(value) }));
   }, [calculationResult]);
 
   const handleExportPDF = async () => {
@@ -313,18 +316,20 @@ export default function ReactorOutputPage() {
   }
 
   const summaryCards = [
-    { label: 'Material Cost', value: formatCurrency(
-        calculationResult.results.fabrication_breakdown.ss304_plate.total_cost +
-        calculationResult.results.fabrication_breakdown.ss304_pipe.total_cost +
-        calculationResult.results.fabrication_breakdown.ms_plate.total_cost +
-        calculationResult.results.fabrication_breakdown.ms_pipe.total_cost
+    { label: 'MATERIAL COST', value: formatCurrency(
+        (calculationResult.results.fabrication_breakdown.ss304_plate?.total_cost || 0) +
+        (calculationResult.results.fabrication_breakdown.ss304_pipe?.total_cost || 0) +
+        (calculationResult.results.fabrication_breakdown.ms_plate?.total_cost || 0) +
+        (calculationResult.results.fabrication_breakdown.ms_pipe?.total_cost || 0) +
+        (calculationResult.results.fabrication_breakdown.ss316_plate?.total_cost || 0) +
+        (calculationResult.results.fabrication_breakdown.ss316_pipe?.total_cost || 0)
       ), bgcolor: '#E3F2FD', accent: '#1976d2' },
-    { label: 'Labour Cost', value: formatCurrency(
+    { label: 'LABOUR COST', value: formatCurrency(
         calculationResult.results.fabrication_breakdown.ss_labour.total_cost +
         calculationResult.results.fabrication_breakdown.ms_labour.total_cost
       ), bgcolor: '#E8F5E9', accent: '#388e3c' },
-    { label: 'Overhead', value: formatCurrency(calculationResult.results.summary.overhead_amount), bgcolor: '#FFF3E0', accent: '#f57c00' },
-    { label: 'Grand Total', value: formatCurrency(calculationResult.results.summary.grand_total), highlight: true, bgcolor: '#F3E5F5', accent: '#7b1fa2' },
+    { label: 'BASE COST', value: formatCurrency(calculationResult.results.summary.fabrication_cost), bgcolor: '#FFF3E0', accent: '#f57c00' },
+    { label: 'GRAND TOTAL', value: formatCurrency(calculationResult.results.summary.grand_total), highlight: true, bgcolor: '#F3E5F5', accent: '#7b1fa2' },
   ];
 
   return (
@@ -410,7 +415,7 @@ export default function ReactorOutputPage() {
               </TableHead>
               <TableBody>
                 {Object.values(calculationResult.results.fabrication_breakdown)
-                  .filter((item) => item.total_cost > 0)
+                  .filter((item): item is NonNullable<typeof item> => !!item && item.total_cost > 0)
                   .map((item) => (
                     <TableRow key={item.description} hover>
                       <TableCell>{item.description}</TableCell>
@@ -683,7 +688,7 @@ export default function ReactorOutputPage() {
           </TableHead>
           <TableBody>
             {Object.values(calculationResult.results.fabrication_breakdown)
-              .filter((item) => item.total_cost > 0)
+              .filter((item): item is NonNullable<typeof item> => !!item && item.total_cost > 0)
               .map((item, i) => (
                 <TableRow key={item.description} sx={{ backgroundColor: i % 2 === 0 ? '#fafafa' : 'white' }}>
                   <TableCell>{item.description}</TableCell>

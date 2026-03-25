@@ -72,7 +72,7 @@ export default function ReactorInputPage() {
       const s = inputs.Specification;
 
       const payload = {
-        Kl: 10,
+        Kl: inputs.Kl,
         Specification: {
           Shell: {
             moc: s.Shell.moc,
@@ -133,7 +133,6 @@ export default function ReactorInputPage() {
           FinancialPercentages: {
             overhead: assumptions.overheadPercent,
             profit: assumptions.profitPercent,
-            inflationRate: assumptions.annualInflationRate,
           },
           OtherCosts: {
             dishPressingPerSqm: assumptions.dishPressingCost,
@@ -143,6 +142,8 @@ export default function ReactorInputPage() {
             mirrorFinishPerSqm: assumptions.mirrorFinishCost,
             paintingLumpsum: assumptions.paintingCost,
             localTransportLumpsum: assumptions.localTransportCost,
+            hardware: assumptions.hardwareCost,
+            consumables: assumptions.consumableCost,
           },
         },
       };
@@ -294,7 +295,7 @@ export default function ReactorInputPage() {
             Reactor Specifications
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            10 KL Reactor Cost Calculator
+            {inputs.Kl} KL Reactor Cost Calculator
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -306,6 +307,24 @@ export default function ReactorInputPage() {
           </Button>
         </Box>
       </Box>
+
+      {/* Kl Section */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#1976d2' }}>
+          Reactor Capacity
+        </Typography>
+        <Grid container spacing={3}>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              fullWidth
+              label="Kl (KL)"
+              type="number"
+              value={inputs.Kl}
+              onChange={(e) => updateInputs({ Kl: parseFloat(e.target.value) || 10 })}
+            />
+          </Grid>
+        </Grid>
+      </Paper>
 
       {/* Shell Section */}
       <Paper sx={{ p: 3, mb: 3 }}>

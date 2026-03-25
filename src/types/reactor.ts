@@ -47,6 +47,7 @@ export interface NozzleSchedule {
 }
 
 export interface ReactorFormInput {
+  Kl: number;
   Specification: ReactorSpecification;
   NozzleSchedule: NozzleSchedule;
 }
@@ -131,9 +132,11 @@ export interface CostItem {
 }
 
 export interface FabricationBreakdown {
-  [key: string]: CostItem;
+  [key: string]: CostItem | undefined;
   ss304_plate: CostItem;
   ss304_pipe: CostItem;
+  ss316_plate?: CostItem;
+  ss316_pipe?: CostItem;
   ms_plate: CostItem;
   ms_pipe: CostItem;
   ss_labour: CostItem;
