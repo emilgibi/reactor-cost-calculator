@@ -253,7 +253,7 @@ export default function AirReceiverOutputPage() {
             Air Receiver Cost Analysis
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Shell: {inputs.Specification.Shell.moc} | Dia: {inputs.Specification.Shell.diameter} mm | Capacity: {inputs.capacity} KL
+            Shell: {inputs.Specification.Shell.moc} | Dia: {inputs.Specification.Shell.diameter} mm | Height: {inputs.Specification.Shell.height} mm
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>

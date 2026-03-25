@@ -10,6 +10,12 @@ import {
 
 export type { AirReceiverFormInput, AirReceiverAssumptions, AirReceiverCalculationResult };
 
+// Fallback SS304 constants used in the local calculateCosts function when the MOC is SS-based.
+// These are fixed material properties, not user-configurable assumptions.
+const SS304_DENSITY_G_CM3 = 8;
+const SS304_PLATE_COST = 210;
+const SS304_LABOUR_COST = 28;
+
 // Dummy backend response – represents the expected API response structure.
 // TODO: Replace with real API call when backend is ready.
 export const dummyBackendData: AirReceiverBackendResponse = {
@@ -54,22 +60,18 @@ interface AirReceiverContextType {
 export const defaultInputs: AirReceiverFormInput = {
   Specification: {
     Shell: {
-      moc: 'SS304',
+      moc: 'CS',
       diameter: 1200,
       height: 3000,
       thickness: 10,
     },
     Dish: {
-      moc: 'SS304',
+      moc: 'CS',
       diameter: 1200,
       thickness: 10,
     },
-    Nozzle: {
-      moc: 'SS304',
-      count: 4,
-    },
     Finish: {
-      type: 'External',
+      type: 'Painting',
     },
   },
   NozzleSchedule: {
@@ -81,34 +83,27 @@ export const defaultInputs: AirReceiverFormInput = {
     NB_150: { count: 0 },
     NB_600: { count: 1 },
   },
-  capacity: 20,
-  designPressure: 10,
-  testPressure: 15,
 };
 
 export const defaultAssumptions: AirReceiverAssumptions = {
   // Material Costs
-  ss304PlateCost: 210,
-  ss304PipeCost: 350,
-  msPlateCost: 80,           // ✅ ADD THIS
-  msPipeCost: 120,           // ✅ ADD THIS
-  
+  msPlateCost: 80,
+  msPipeCost: 120,
+
   // Labour Costs
-  ssLabourCost: 28,
   msLabourCost: 30,
-  
+
   // Density Values
-  ss304Density: 8,
   msDensity: 7.86,
-  
+
   // Other Costs
-  dishPressingPerSqm: 20,    // ✅ ADD THIS
+  dishPressingPerSqm: 20,
   machineCharges: 0,
-  paintingCost: 25000,
-  localTransportCost: 35000,
-  hardwareCost: 2500,
-  testingCost: 30000,        // ✅ ADD THIS
-  
+  paintingLumpsum: 25000,
+  localTransportLumpsum: 35000,
+  hardwareLumpsum: 2500,
+  testingCost: 30000,
+
   // Financial Percentages
   overheadPercent: 10,
   profitPercent: 15,
@@ -147,9 +142,9 @@ export function AirReceiverProvider({ children }: { children: React.ReactNode })
     const dishArea = 2 * pi * Math.pow(diameter / 2, 2) * 0.7; // approx dish area
 
     const isSS = spec.Shell.moc.includes('SS');
-    const density = isSS ? a.ss304Density * 1000 : a.msDensity * 1000;
-    const plateCost = isSS ? a.ss304PlateCost : a.msPlateCost;
-    const labourCost = isSS ? a.ssLabourCost : a.msLabourCost;
+    const density = isSS ? SS304_DENSITY_G_CM3 * 1000 : a.msDensity * 1000;
+    const plateCost = isSS ? SS304_PLATE_COST : a.msPlateCost;
+    const labourCost = isSS ? SS304_LABOUR_COST : a.msLabourCost;
 
     const shellWeight = shellArea * thickness * density;
     const dishWeight = dishArea * (spec.Dish.thickness / 1000) * density;
@@ -170,8 +165,8 @@ export function AirReceiverProvider({ children }: { children: React.ReactNode })
     const fabrication_breakdown: { [key: string]: AirReceiverCostItem } = {};
 
     if (isSS) {
-      fabrication_breakdown['ss304_plate'] = mkItem('SS304 Plate', a.ss304PlateCost, totalWeight, 'kg', materialCost);
-      fabrication_breakdown['ss_labour'] = mkItem('SS Labour', a.ssLabourCost, totalWeight, 'kg', labourTotal);
+      fabrication_breakdown['ss304_plate'] = mkItem('SS304 Plate', SS304_PLATE_COST, totalWeight, 'kg', materialCost);
+      fabrication_breakdown['ss_labour'] = mkItem('SS Labour', SS304_LABOUR_COST, totalWeight, 'kg', labourTotal);
     } else {
       fabrication_breakdown['ms_plate'] = mkItem('MS Plate', a.msPlateCost, totalWeight, 'kg', materialCost);
       fabrication_breakdown['ms_labour'] = mkItem('MS Labour', a.msLabourCost, totalWeight, 'kg', labourTotal);
@@ -179,18 +174,18 @@ export function AirReceiverProvider({ children }: { children: React.ReactNode })
 
     fabrication_breakdown['dish_pressing'] = mkItem('Dish Pressing', a.dishPressingPerSqm, dishWeight, 'kg', dishPressingTotal);
     fabrication_breakdown['machine_charges'] = mkItem('Machine Charges', null, null, null, a.machineCharges);
-    fabrication_breakdown['hardware'] = mkItem('Hardware', null, null, null, a.hardwareCost);
-    fabrication_breakdown['painting'] = mkItem('Painting', null, null, null, a.paintingCost);
-    fabrication_breakdown['local_transport'] = mkItem('Local Transport', null, null, null, a.localTransportCost);
+    fabrication_breakdown['hardware'] = mkItem('Hardware', null, null, null, a.hardwareLumpsum);
+    fabrication_breakdown['painting'] = mkItem('Painting', null, null, null, a.paintingLumpsum);
+    fabrication_breakdown['local_transport'] = mkItem('Local Transport', null, null, null, a.localTransportLumpsum);
 
     const fabricationCost =
       materialCost +
       labourTotal +
       dishPressingTotal +
       a.machineCharges +
-      a.hardwareCost +
-      a.paintingCost +
-      a.localTransportCost;
+      a.hardwareLumpsum +
+      a.paintingLumpsum +
+      a.localTransportLumpsum;
 
     const overheadAmount = (fabricationCost * a.overheadPercent) / 100;
     const profitAmount = ((fabricationCost + overheadAmount) * a.profitPercent) / 100;

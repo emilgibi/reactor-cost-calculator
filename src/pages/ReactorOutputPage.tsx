@@ -325,8 +325,8 @@ export default function ReactorOutputPage() {
         (calculationResult.results.fabrication_breakdown.ss316_pipe?.total_cost || 0)
       ), bgcolor: '#E3F2FD', accent: '#1976d2' },
     { label: 'LABOUR COST', value: formatCurrency(
-        calculationResult.results.fabrication_breakdown.ss_labour.total_cost +
-        calculationResult.results.fabrication_breakdown.ms_labour.total_cost
+        (calculationResult.results.fabrication_breakdown.ss_labour?.total_cost || 0) +
+        (calculationResult.results.fabrication_breakdown.ms_labour?.total_cost || 0)
       ), bgcolor: '#E8F5E9', accent: '#388e3c' },
     { label: 'BASE COST', value: formatCurrency(calculationResult.results.summary.fabrication_cost), bgcolor: '#FFF3E0', accent: '#f57c00' },
     { label: 'GRAND TOTAL', value: formatCurrency(calculationResult.results.summary.grand_total), highlight: true, bgcolor: '#F3E5F5', accent: '#7b1fa2' },
