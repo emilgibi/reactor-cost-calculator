@@ -82,13 +82,15 @@ export default function ReactorOutputPage() {
     const shellMaterial = inputs.Specification?.Shell?.moc || 'SS304';
     const fb = calculationResult.results.fabrication_breakdown;
 
-    // Shell material cost: SS304 or MS plates + pipes
+    // Shell material cost: SS304, SS316, or MS plates + pipes
     const shellMaterialCost = shellMaterial === 'SS304'
       ? (fb.ss304_plate?.total_cost || 0) + (fb.ss304_pipe?.total_cost || 0)
+      : shellMaterial === 'SS316'
+      ? (fb.ss316_plate?.total_cost || 0) + (fb.ss316_pipe?.total_cost || 0)
       : (fb.ms_plate?.total_cost || 0) + (fb.ms_pipe?.total_cost || 0);
 
-    // Limpet is always MS. When shell is SS304, use dedicated limpet line item if present,
-    // otherwise fall back to ms_plate + ms_pipe (which represent limpet in SS304 reactors).
+    // Limpet is always MS. When shell is SS304/SS316, use dedicated limpet line item if present,
+    // otherwise fall back to ms_plate + ms_pipe (which represent limpet in SS304/SS316 reactors).
     // When shell is MS, limpet shares the same material — avoid double counting by setting to 0.
     const limpetDedicated = fb.limpet?.total_cost || 0;
     const limpetMaterialCost = shellMaterial !== 'MS'
@@ -97,10 +99,13 @@ export default function ReactorOutputPage() {
           : (fb.ms_plate?.total_cost || 0) + (fb.ms_pipe?.total_cost || 0))
       : 0;
 
-    // Effective shell cost for the forecast API — must be > 0
+    // Use only actual material costs — do NOT fall back to grand_total, which
+    // would make the shell cost appear as the entire job cost.
     const effectiveShellCost = shellMaterialCost > 0
       ? shellMaterialCost
-      : calculationResult.results.summary.grand_total;
+      : limpetMaterialCost > 0
+      ? limpetMaterialCost
+      : 0;
 
     console.log('[Forecast] Shell cost:', effectiveShellCost, 'Limpet cost:', limpetMaterialCost, 'Material:', shellMaterial);
 
@@ -110,21 +115,23 @@ export default function ReactorOutputPage() {
 
     const fetchForecasts = async () => {
       try {
-        // Always fetch shell forecast
-        const shellPromise = fetch(`${backendUrl}/api/forecast`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            base_cost: effectiveShellCost,
-            material_type: shellMaterial,
-            include_secondary_material: false,
-            secondary_material_type: 'MS',
-            primary_cost_percentage: 100,
-            secondary_cost_percentage: 0,
-            view_mode: 'yearly',
-            months_ahead: 60,
-          }),
-        });
+        // Only fetch shell forecast if effectiveShellCost > 0 to avoid backend ZeroDivisionError
+        const shellPromise = effectiveShellCost > 0
+          ? fetch(`${backendUrl}/api/forecast`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                base_cost: effectiveShellCost,
+                material_type: shellMaterial,
+                include_secondary_material: false,
+                secondary_material_type: 'MS',
+                primary_cost_percentage: 100,
+                secondary_cost_percentage: 0,
+                view_mode: 'yearly',
+                months_ahead: 60,
+              }),
+            })
+          : Promise.resolve(null);
 
         // Only fetch limpet forecast if limpet cost > 0
         const limpetPromise = limpetMaterialCost > 0

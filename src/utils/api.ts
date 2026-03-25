@@ -143,38 +143,44 @@ export async function getDualMaterialForecastSplit(
   limpetCost: number,
 ): Promise<{ shell: MaterialForecast | null; limpet: MaterialForecast | null }> {
   try {
-    const [shellRes, limpetRes] = await Promise.all([
-      fetch(`${backendUrl}/api/forecast`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          base_cost: shellCost,
-          material_type: shellMaterial,
-          include_secondary_material: false,
-          secondary_material_type: 'MS',
-          primary_cost_percentage: 100,
-          secondary_cost_percentage: 0,
-          view_mode: 'yearly',
-          months_ahead: 60,
-        }),
-      }),
-      fetch(`${backendUrl}/api/forecast`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          base_cost: limpetCost,
-          material_type: 'MS',
-          include_secondary_material: false,
-          primary_cost_percentage: 100,
-          secondary_cost_percentage: 0,
-          view_mode: 'yearly',
-          months_ahead: 60,
-        }),
-      }),
-    ]);
+    // Build requests — skip calls when cost is 0 to avoid ZeroDivisionError on backend
+    const shellPromise = shellCost > 0
+      ? fetch(`${backendUrl}/api/forecast`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            base_cost: shellCost,
+            material_type: shellMaterial,
+            include_secondary_material: false,
+            secondary_material_type: 'MS',
+            primary_cost_percentage: 100,
+            secondary_cost_percentage: 0,
+            view_mode: 'yearly',
+            months_ahead: 60,
+          }),
+        })
+      : Promise.resolve(null);
 
-    const shellData  = shellRes.ok  ? await shellRes.json()  : null;
-    const limpetData = limpetRes.ok ? await limpetRes.json() : null;
+    const limpetPromise = limpetCost > 0
+      ? fetch(`${backendUrl}/api/forecast`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            base_cost: limpetCost,
+            material_type: 'MS',
+            include_secondary_material: false,
+            primary_cost_percentage: 100,
+            secondary_cost_percentage: 0,
+            view_mode: 'yearly',
+            months_ahead: 60,
+          }),
+        })
+      : Promise.resolve(null);
+
+    const [shellRes, limpetRes] = await Promise.all([shellPromise, limpetPromise]);
+
+    const shellData  = shellRes  && shellRes.ok  ? await shellRes.json()  : null;
+    const limpetData = limpetRes && limpetRes.ok ? await limpetRes.json() : null;
 
     return {
       shell:  shellData?.primary_material  ?? null,
